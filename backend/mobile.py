@@ -18,11 +18,13 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])
 
-# MongoDB connection - FIXED COLLECTION NAME
+# MongoDB connection - FIXED IMPLEMENTATION
+mobile_collection = None
 try:
-    client = MongoClient('mongodb://localhost:27017/')
+    client = MongoClient('mongodb://localhost:27017/', serverSelectionTimeoutMS=5000)
     db = client['mentoradb']
-    mobile_collection = db['mobile']  # CHANGED TO 'mobile'
+    mobile_collection = db['mobile_addiction'] 
+    client.server_info()  # Force connection check
     logger.info("Connected to MongoDB successfully")
 except Exception as e:
     logger.error(f"Failed to connect to MongoDB: {e}")
@@ -215,7 +217,8 @@ def generate_personalized_tips(input_data, prediction):
 
 def save_to_mongodb(user_id, input_data, prediction_result):
     """Save prediction result to MongoDB"""
-    if not mobile_collection:
+    # FIX: Proper MongoDB collection check
+    if mobile_collection is None:
         logger.error("MongoDB collection not available")
         return False
     
@@ -241,7 +244,8 @@ def save_to_mongodb(user_id, input_data, prediction_result):
     
 def get_today_prediction_from_db(user_id):
     """Get today's prediction from MongoDB"""
-    if not mobile_collection:
+    # FIX: Proper MongoDB collection check
+    if mobile_collection is None:
         return None
     
     try:
@@ -282,7 +286,8 @@ def home():
             'accuracy': f"{model_metadata.get('best_accuracy', 0):.4f}" if model_metadata else 'Unknown',
             'features_count': len(feature_columns) if feature_columns else 0
         },
-        'mongodb_status': 'Connected' if mobile_collection else 'Not Connected',
+        # FIX: Proper MongoDB status check
+        'mongodb_status': 'Connected' if mobile_collection is not None else 'Not Connected',
         'endpoints': {
             'analyze': '/analyze_mobile_usage (POST)',
             'health': '/health (GET)',
@@ -334,16 +339,21 @@ def analyze_mobile_usage():
             
             # Make prediction
             prediction_encoded = model.predict(features_array)[0]
-            prediction_proba = model.predict_proba(features_array)[0] if hasattr(model, 'predict_proba') else None
+            
+            # Get prediction probabilities if available
+            prediction_proba = None
+            if hasattr(model, 'predict_proba'):
+                prediction_proba = model.predict_proba(features_array)[0]
             
             # Decode prediction
             prediction = label_encoder.inverse_transform([prediction_encoded])[0]
             
             # Calculate confidence
             if prediction_proba is not None:
-                confidence = f"{max(prediction_proba) * 100:.1f}%"
+                confidence_value = max(prediction_proba) * 100
+                confidence = f"{confidence_value:.1f}%"
             else:
-                confidence = ""
+                confidence = "N/A"
             
             # Generate personalized tips
             personalized_tips = generate_personalized_tips(data, prediction)
@@ -373,8 +383,12 @@ def analyze_mobile_usage():
                 }
             }
             
-            # Save to MongoDB
-            save_to_mongodb(user_id, data, result)
+            # Save to MongoDB - FIXED: Now properly saves to database
+            save_success = save_to_mongodb(user_id, data, result)
+            if save_success:
+                logger.info(f"Successfully saved prediction for user {user_id}")
+            else:
+                logger.error(f"Failed to save prediction for user {user_id}")
             
             logger.info(f"Analysis completed for user {user_id}: {prediction}")
             return jsonify(result), 200
@@ -420,7 +434,8 @@ def get_user_history():
         if not user_id:
             return jsonify({'error': 'User ID is required'}), 400
         
-        if not mobile_collection:
+        # FIX: Proper MongoDB collection check
+        if mobile_collection is None:
             return jsonify({'error': 'Database not available'}), 500
         
         # Get user's prediction history
@@ -428,6 +443,11 @@ def get_user_history():
             {'user_id': user_id},
             {'_id': 0, 'prediction_result': 1, 'date': 1, 'created_at': 1}
         ).sort('created_at', -1).limit(limit))
+        
+        # Convert ObjectId to string for JSON serialization
+        for item in history:
+            if '_id' in item:
+                item['_id'] = str(item['_id'])
         
         logger.info(f"Retrieved {len(history)} predictions for user: {user_id}")
         return jsonify(history), 200
@@ -445,7 +465,8 @@ def health_check():
         
         # Count today's predictions
         today_count = 0
-        if mobile_collection:
+        # FIX: Proper MongoDB collection check
+        if mobile_collection is not None:
             today = datetime.now().strftime('%Y-%m-%d')
             today_count = mobile_collection.count_documents({'date': today})
         
@@ -453,7 +474,8 @@ def health_check():
             'status': 'Server is running',
             'model_status': model_status,
             'scaler_status': scaler_status,
-            'mongodb_status': 'Connected' if mobile_collection else 'Not Connected',
+            # FIX: Proper MongoDB status check
+            'mongodb_status': 'Connected' if mobile_collection is not None else 'Not Connected',
             'features_loaded': len(feature_columns) if feature_columns else 0,
             'model_info': {
                 'name': model_metadata.get('best_model_name', 'Unknown') if model_metadata else 'Unknown',
@@ -491,7 +513,8 @@ if __name__ == '__main__':
         print(f"✓ Accuracy: {model_metadata.get('best_accuracy', 0):.4f}")
         print(f"✓ Features: {len(feature_columns)}")
         print(f"✓ Scaling Required: {model_metadata.get('requires_scaling', False)}")
-        print(f"✓ MongoDB: {'Connected' if mobile_collection else 'Not Connected'}")
+        # FIX: Proper MongoDB status check
+        print(f"✓ MongoDB: {'Connected' if mobile_collection is not None else 'Not Connected'}")
         print(f"✓ Server will run on: http://localhost:5003")
         print(f"✓ Server will run on: http://127.0.0.1:5003")
         print("="*60)
