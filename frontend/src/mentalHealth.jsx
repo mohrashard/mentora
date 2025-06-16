@@ -2,13 +2,19 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import "./mentalHealth.css";
 
+// Get local date-time string in ISO format without timezone conversion
+const getLocalDateTimeString = () => {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000; // offset in milliseconds
+  const localISOTime = (new Date(now - offset)).toISOString().slice(0, -1);
+  return localISOTime;
+};
 
 const getTodayDateString = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return today.toISOString().split('T')[0];
 };
-
 
 const getTomorrowDateString = () => {
   const tomorrow = new Date();
@@ -18,7 +24,6 @@ const getTomorrowDateString = () => {
 };
 
 const MHP_STORAGE_KEY = 'mental_health_prediction_last';
-
 
 const generatePersonalizedTips = (resultsData) => {
   const tips = [];
@@ -376,12 +381,21 @@ const MentalHealthPredictionForm = () => {
     try {
       setIsLoading(true);
 
+      // Get local timestamp
+      const localDateTime = getLocalDateTimeString();
+      
+      // Create data to send with local timestamp
+      const dataToSend = {
+        ...formData,
+        local_timestamp: localDateTime
+      };
+
       const response = await fetch('http://localhost:5002/predictmentalhealth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(dataToSend)
       });
 
       if (response.ok) {
@@ -497,8 +511,6 @@ const MentalHealthPredictionForm = () => {
                   <span className="prediction-value">{resultsData.predictions.anxiety_presence}</span>
                 </div>
               </div>
-
-
 
               <div className="recommendations">
                 <h3>Recommendations:</h3>

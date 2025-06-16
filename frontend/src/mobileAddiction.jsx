@@ -16,17 +16,48 @@ import { useNavigate } from "react-router-dom";
 
 const MOBILE_STORAGE_KEY = "mobile_usage_last_prediction";
 
-const getTodayDateString = () => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return today.toISOString().split("T")[0];
+// Helper function to get local date string (YYYY-MM-DD)
+const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
+// Get today's date in local timezone
+const getTodayDateString = () => {
+  return getLocalDateString();
+};
+
+// Get tomorrow's date in local timezone
 const getTomorrowDateString = () => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
-  return tomorrow.toISOString().split("T")[0];
+  return getLocalDateString(tomorrow);
+};
+
+// Get local timestamp for saving
+const getLocalTimestamp = () => {
+  const now = new Date();
+  return {
+    timestamp: now.getTime(), // Unix timestamp
+    dateString: getLocalDateString(now),
+    displayTime: now.toLocaleString() // For display purposes
+  };
+};
+
+// Check if a timestamp is from today
+const isFromToday = (timestamp) => {
+  if (!timestamp) return false;
+  
+  const savedDate = new Date(timestamp);
+  const today = new Date();
+  
+  return (
+    savedDate.getFullYear() === today.getFullYear() &&
+    savedDate.getMonth() === today.getMonth() &&
+    savedDate.getDate() === today.getDate()
+  );
 };
 
 const MobileUsageAnalyzer = () => {
@@ -225,26 +256,35 @@ const MobileUsageAnalyzer = () => {
         const todayStr = getTodayDateString();
         const tomorrowStr = getTomorrowDateString();
 
-        // Check if we have a local prediction
+        // Check local storage first
         const localPrediction = localStorage.getItem(
           `${MOBILE_STORAGE_KEY}_${userId}`
         );
+        
         if (localPrediction) {
-          const parsed = JSON.parse(localPrediction);
-          if (
-            parsed.timestamp &&
-            new Date(parsed.timestamp).toISOString().split("T")[0] === todayStr
-          ) {
-            setHasSubmittedToday(true);
-            setTodaysPrediction(parsed);
-            setNextAvailableDate(tomorrowStr);
-            return;
+          try {
+            const parsed = JSON.parse(localPrediction);
+            
+            // Check if the saved prediction is from today using proper date comparison
+            if (parsed.timestamp && isFromToday(parsed.timestamp)) {
+              console.log("Found today's prediction in local storage");
+              setHasSubmittedToday(true);
+              setTodaysPrediction(parsed);
+              setNextAvailableDate(tomorrowStr);
+              return;
+            } else {
+              // Remove old prediction from localStorage
+              localStorage.removeItem(`${MOBILE_STORAGE_KEY}_${userId}`);
+            }
+          } catch (e) {
+            console.error("Error parsing local prediction:", e);
+            localStorage.removeItem(`${MOBILE_STORAGE_KEY}_${userId}`);
           }
         }
 
         // Check backend for today's prediction
         const response = await fetch(
-          `http://localhost:5003/get_today_prediction?user_id=${userId}`,
+          `http://localhost:5003/get_today_prediction?user_id=${userId}&date=${todayStr}`,
           {
             method: "GET",
           }
@@ -252,14 +292,21 @@ const MobileUsageAnalyzer = () => {
 
         if (response.ok) {
           const data = await response.json();
+          console.log("Found today's prediction in backend");
           setTodaysPrediction(data);
           setHasSubmittedToday(true);
           setNextAvailableDate(tomorrowStr);
 
-          // Cache in localStorage
+          // Cache in localStorage with current timestamp
+          const localTime = getLocalTimestamp();
           localStorage.setItem(
             `${MOBILE_STORAGE_KEY}_${userId}`,
-            JSON.stringify(data)
+            JSON.stringify({
+              ...data,
+              timestamp: localTime.timestamp,
+              dateString: localTime.dateString,
+              displayTime: localTime.displayTime
+            })
           );
         } else if (response.status !== 404) {
           console.error("Error checking prediction lock:", response.status);
@@ -380,9 +427,16 @@ const MobileUsageAnalyzer = () => {
         }
       });
 
+      // Get local timestamp for submission
+      const localTime = getLocalTimestamp();
+
       const submissionData = {
         user_id: userId,
         ...convertedData,
+        // Include local timestamp information
+        submission_timestamp: localTime.timestamp,
+        submission_date: localTime.dateString,
+        local_time: localTime.displayTime
       };
 
       const response = await fetch(
@@ -403,13 +457,14 @@ const MobileUsageAnalyzer = () => {
         setHasSubmittedToday(true);
         setTodaysPrediction(data);
 
-        // Save today's prediction
-        const todayStr = getTodayDateString();
+        // Save today's prediction with local timestamp
         localStorage.setItem(
           `${MOBILE_STORAGE_KEY}_${userId}`,
           JSON.stringify({
             ...data,
-            timestamp: new Date().toISOString(),
+            timestamp: localTime.timestamp,
+            dateString: localTime.dateString,
+            displayTime: localTime.displayTime
           })
         );
 
@@ -627,7 +682,7 @@ const MobileUsageAnalyzer = () => {
               <div className="info-item">
                 <span className="info-label">Analysis Time</span>
                 <span className="info-value">
-                  {new Date(result.analysis_info.timestamp).toLocaleString()}
+                  {result.displayTime || new Date(result.analysis_info?.timestamp || result.timestamp).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -637,7 +692,7 @@ const MobileUsageAnalyzer = () => {
         <div className="next-analysis-note">
           <div className="lock-icon">🔒</div>
           <p>
-            You can submit a new analysis after midnight.
+            You can submit a new analysis after midnight (12:00 AM).
             <br />
             Next available date: <strong>{nextAvailableDate}</strong>
           </p>
@@ -667,7 +722,7 @@ const MobileUsageAnalyzer = () => {
               <div className="lock-message">
                 You've already taken today's assessment.
                 <br />
-                You can take the next one after midnight.
+                You can take the next one after midnight (12:00 AM).
               </div>
             </div>
 
@@ -690,7 +745,7 @@ const MobileUsageAnalyzer = () => {
               Get personalized insights about your mobile usage patterns and
               discover ways to improve your digital wellness.
             </p>
-          </div>
+            </div>
 
           {error && (
             <div className="error-alert">

@@ -23,17 +23,27 @@ import './SocialMediaPredictor.css';
 
 const SOCIAL_MEDIA_STORAGE_KEY = 'social_media_last_prediction';
 
+// Get today's date string in YYYY-MM-DD format
 const getTodayDateString = () => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return today.toISOString().split('T')[0];
+  return today.getFullYear() + '-' + 
+         String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+         String(today.getDate()).padStart(2, '0');
 };
 
+// Get tomorrow's date string in YYYY-MM-DD format
 const getTomorrowDateString = () => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
-  return tomorrow.toISOString().split('T')[0];
+  return tomorrow.getFullYear() + '-' + 
+         String(tomorrow.getMonth() + 1).padStart(2, '0') + '-' + 
+         String(tomorrow.getDate()).padStart(2, '0');
+};
+
+// Check if it's past midnight (new day)
+const isNewDay = (lastSubmissionDate) => {
+  const today = getTodayDateString();
+  return lastSubmissionDate !== today;
 };
 
 const SocialMediaPredictor = () => {
@@ -63,6 +73,13 @@ const SocialMediaPredictor = () => {
     const storedUserId = localStorage.getItem('user_id') || 'user_123';
     setUserId(storedUserId);
     checkPredictionLock(storedUserId);
+    
+    // Check every minute if it's a new day
+    const interval = setInterval(() => {
+      checkPredictionLock(storedUserId);
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -74,10 +91,22 @@ const SocialMediaPredictor = () => {
       const todayStr = getTodayDateString();
       const tomorrowStr = getTomorrowDateString();
       
+      // Check local storage first
       const localPrediction = localStorage.getItem(`${SOCIAL_MEDIA_STORAGE_KEY}_${userId}`);
       if (localPrediction) {
         const parsed = JSON.parse(localPrediction);
-        if (new Date(parsed.timestamp).toISOString().split('T')[0] === todayStr) {
+        const lastSubmissionDate = parsed.submissionDate;
+        
+        // If it's a new day, allow new prediction
+        if (isNewDay(lastSubmissionDate)) {
+          setHasSubmittedToday(false);
+          setTodaysPrediction(null);
+          setNextAvailableDate('');
+          return;
+        }
+        
+        // If submitted today, show locked state
+        if (lastSubmissionDate === todayStr) {
           setHasSubmittedToday(true);
           setTodaysPrediction(parsed);
           setNextAvailableDate(tomorrowStr);
@@ -85,23 +114,52 @@ const SocialMediaPredictor = () => {
         }
       }
 
+      // Try to fetch from server
       try {
         const response = await fetch(`http://localhost:5004/get_today_prediction?user_id=${userId}`);
         if (response.ok) {
           const data = await response.json();
-          setTodaysPrediction(data);
-          setHasSubmittedToday(true);
-          setNextAvailableDate(tomorrowStr);
-          localStorage.setItem(
-            `${SOCIAL_MEDIA_STORAGE_KEY}_${userId}`, 
-            JSON.stringify(data)
-          );
+          const serverDate = new Date(data.timestamp).toISOString().split('T')[0];
+          
+          // Check if server data is from today
+          if (serverDate === todayStr) {
+            setTodaysPrediction(data);
+            setHasSubmittedToday(true);
+            setNextAvailableDate(tomorrowStr);
+            
+            // Update localStorage with proper date
+            localStorage.setItem(
+              `${SOCIAL_MEDIA_STORAGE_KEY}_${userId}`, 
+              JSON.stringify({
+                ...data,
+                submissionDate: todayStr
+              })
+            );
+          } else {
+            // Server data is old, allow new prediction
+            setHasSubmittedToday(false);
+            setTodaysPrediction(null);
+            setNextAvailableDate('');
+          }
+        } else {
+          // No server data, allow new prediction
+          setHasSubmittedToday(false);
+          setTodaysPrediction(null);
+          setNextAvailableDate('');
         }
       } catch (error) {
         console.error('Failed to fetch today prediction:', error);
+        // On network error, allow new prediction
+        setHasSubmittedToday(false);
+        setTodaysPrediction(null);
+        setNextAvailableDate('');
       }
     } catch (error) {
       console.error('Error checking prediction status:', error);
+      // On error, allow new prediction
+      setHasSubmittedToday(false);
+      setTodaysPrediction(null);
+      setNextAvailableDate('');
     }
   };
 
@@ -187,13 +245,23 @@ const SocialMediaPredictor = () => {
 
       const data = await response.json();
       if (response.ok) {
-        setPredictionResult(data);
+        const todayStr = getTodayDateString();
+        const resultWithDate = {
+          ...data,
+          timestamp: new Date().toISOString(),
+          submissionDate: todayStr
+        };
+        
+        setPredictionResult(resultWithDate);
         setHasSubmittedToday(true);
-        setTodaysPrediction(data);
+        setTodaysPrediction(resultWithDate);
+        
+        // Store in localStorage with submission date
         localStorage.setItem(
           `${SOCIAL_MEDIA_STORAGE_KEY}_${userId}`, 
-          JSON.stringify({ ...data, timestamp: new Date().toISOString() })
+          JSON.stringify(resultWithDate)
         );
+        
         setNextAvailableDate(getTomorrowDateString());
       } else {
         if (data.errors && data.error === 'One or more input values are not recognized by the model') {
@@ -233,6 +301,17 @@ const SocialMediaPredictor = () => {
     return { level: 'Low Risk', color: 'success', icon: <Shield size={20} /> };
   };
 
+  const formatNextAvailableTime = () => {
+    if (!nextAvailableDate) return '';
+    const tomorrow = new Date(nextAvailableDate);
+    return tomorrow.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    }) + ' at 12:00 AM';
+  };
+
   if (hasSubmittedToday) {
     return (
       <div className="app-layout">
@@ -247,6 +326,9 @@ const SocialMediaPredictor = () => {
                 <h2 className="lock-title">Assessment Complete</h2>
                 <p className="lock-message">
                   You've already completed today's social media impact assessment.
+                </p>
+                <p className="next-assessment-time">
+                  Next assessment available: {formatNextAvailableTime()}
                 </p>
               </div>
 

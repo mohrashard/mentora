@@ -89,7 +89,7 @@ def validate_prediction_data(data):
     # Required fields validation
     required_fields = ['age', 'gender', 'academic_level', 'country', 'avg_daily_usage_hours', 
                       'most_used_platform', 'sleep_hours_per_night', 'mental_health_score', 
-                      'relationship_status', 'conflicts_over_social_media']
+                      'relationship_status', 'conflicts_over_social_media', 'local_timestamp']
     
     for field in required_fields:
         if field not in data or str(data[field]).strip() == '':
@@ -135,6 +135,14 @@ def validate_prediction_data(data):
                 errors['conflicts_over_social_media'] = 'Conflicts score must be between 0 and 10'
     except (ValueError, TypeError):
         errors['conflicts_over_social_media'] = 'Conflicts score must be a valid number'
+    
+    # Validate local_timestamp format
+    if 'local_timestamp' in data and data['local_timestamp']:
+        try:
+            # Try to parse the timestamp to ensure it's valid
+            datetime.fromisoformat(data['local_timestamp'])
+        except (ValueError, TypeError):
+            errors['local_timestamp'] = 'Invalid timestamp format'
     
     return errors
 
@@ -294,7 +302,8 @@ def get_today_prediction():
             return jsonify({
                 'results': prediction['predictions'],
                 'personalized_tips': prediction['personalized_tips'],
-                'timestamp': prediction['timestamp'].isoformat()
+                'timestamp': prediction['timestamp'].isoformat(),
+                'local_timestamp': prediction.get('local_timestamp', '')  # Return stored local timestamp
             }), 200
         else:
             return jsonify({'message': 'No prediction found for today'}), 404
@@ -333,6 +342,7 @@ def predict_academic_performance():
         relationship_status = data['relationship_status']
         conflicts = data['conflicts_over_social_media']
         user_id = data.get('user_id')  # Optional user_id from session/auth
+        local_timestamp = data['local_timestamp']  # New field from frontend
         
         # Make prediction
         academic_result, addiction_score = predict_social_media_impact(
@@ -365,14 +375,15 @@ def predict_academic_performance():
                 'sleep_hours_per_night': float(sleep_hours),
                 'mental_health_score': int(mental_health_score),
                 'relationship_status': relationship_status,
-                'conflicts_over_social_media': int(conflicts)
+                'conflicts_over_social_media': int(conflicts),
+                'local_timestamp': local_timestamp  # Store local timestamp from frontend
             },
             'predictions': {
                 'affects_academic_performance': academic_result,
                 'addiction_score': addiction_score
             },
             'personalized_tips': tips,  # Store tips in database
-            'timestamp': datetime.utcnow()
+            'timestamp': datetime.utcnow()  # Server's UTC timestamp
         }
         
         # Save to MongoDB
@@ -395,7 +406,8 @@ def predict_academic_performance():
                     'academic_impact': f"Social media {'does' if academic_result == 'Yes' else 'does not'} significantly affect academic performance",
                     'addiction_level': f"Addiction score: {addiction_score}/10 - {addiction_level} risk"
                 },
-                'personalized_tips': tips  # Send tips in response
+                'personalized_tips': tips,  # Send tips in response
+                'local_timestamp': local_timestamp  # Return local timestamp to frontend
             }), 200
         else:
             logger.error("Failed to save prediction to database")
