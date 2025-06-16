@@ -10,6 +10,7 @@ import traceback
 from pymongo import MongoClient
 from bson import ObjectId
 import json
+import re  # Added for date format validation
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -129,7 +130,7 @@ def validate_input_data(data):
     
     for field, validation in feature_validations.items():
         if field not in data:
-            errors[field] = f'{field} is required'
+            errors[field] = f'{field.replace("_", " ").title()} is required'
             continue
         
         try:
@@ -291,7 +292,8 @@ def home():
         'endpoints': {
             'analyze': '/analyze_mobile_usage (POST)',
             'health': '/health (GET)',
-            'get_today_prediction': '/get_today_prediction (GET)'
+            'get_today_prediction': '/get_today_prediction (GET)',
+            'get_user_history': '/get_user_history (GET)'
         }
     }), 200
 
@@ -424,30 +426,48 @@ def get_today_prediction():
         logger.error(f"Error retrieving today's prediction: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
+# Enhanced history endpoint with date filtering
 @app.route('/get_user_history', methods=['GET'])
 def get_user_history():
-    """Get user's prediction history"""
+    """Get user's prediction history with optional date filtering"""
     try:
         user_id = request.args.get('user_id')
         limit = int(request.args.get('limit', 10))
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
         
         if not user_id:
             return jsonify({'error': 'User ID is required'}), 400
         
+        # Validate date formats if provided
+        date_format = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+        if start_date and not date_format.match(start_date):
+            return jsonify({'error': 'start_date must be in YYYY-MM-DD format'}), 400
+        if end_date and not date_format.match(end_date):
+            return jsonify({'error': 'end_date must be in YYYY-MM-DD format'}), 400
+        
+        # Build query with date filtering
+        query = {'user_id': user_id}
+        if start_date and end_date:
+            query['date'] = {'$gte': start_date, '$lte': end_date}
+        elif start_date:
+            query['date'] = {'$gte': start_date}
+        elif end_date:
+            query['date'] = {'$lte': end_date}
+            
         # FIX: Proper MongoDB collection check
         if mobile_collection is None:
             return jsonify({'error': 'Database not available'}), 500
         
         # Get user's prediction history
         history = list(mobile_collection.find(
-            {'user_id': user_id},
+            query,
             {'_id': 0, 'prediction_result': 1, 'date': 1, 'created_at': 1}
         ).sort('created_at', -1).limit(limit))
         
-        # Convert ObjectId to string for JSON serialization
+        # Convert created_at to ISO string for JSON
         for item in history:
-            if '_id' in item:
-                item['_id'] = str(item['_id'])
+            item['created_at'] = item['created_at'].isoformat()
         
         logger.info(f"Retrieved {len(history)} predictions for user: {user_id}")
         return jsonify(history), 200

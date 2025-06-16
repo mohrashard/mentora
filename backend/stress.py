@@ -569,6 +569,128 @@ def get_prediction_stats():
             'success': False,
             'error': f'Failed to fetch stats: {str(e)}'
         }), 500
+    
+@app.route('/stresshistory', methods=['GET'])
+def get_stress_history():
+    """Get stress prediction history with filtering options"""
+    try:
+        if predictions_collection is None:
+            return jsonify({
+                'success': False,
+                'error': 'Database not connected'
+            }), 500
+        
+        # Get user ID from query parameters
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'error': 'User ID is required'
+            }), 400
+        
+        # Build query filters
+        query_filter = {'user_id': user_id}
+        
+        # Date range filtering
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if start_date or end_date:
+            date_filter = {}
+            try:
+                if start_date:
+                    start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                    date_filter['$gte'] = start_dt
+                if end_date:
+                    end_dt = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+                    date_filter['$lt'] = end_dt
+                query_filter['timestamp'] = date_filter
+            except ValueError:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid date format. Use YYYY-MM-DD'
+                }), 400
+        
+        # Stress level filtering
+        min_stress = request.args.get('min_stress')
+        max_stress = request.args.get('max_stress')
+        
+        if min_stress or max_stress:
+            stress_filter = {}
+            try:
+                if min_stress:
+                    stress_filter['$gte'] = float(min_stress)
+                if max_stress:
+                    stress_filter['$lte'] = float(max_stress)
+                query_filter['predicted_stress_level'] = stress_filter
+            except ValueError:
+                return jsonify({
+                    'success': False,
+                    'error': 'Stress levels must be numeric'
+                }), 400
+        
+        # Stress category filtering
+        category = request.args.get('category')
+        if category:
+            valid_categories = ['Low Stress', 'Medium Stress', 'High Stress']
+            if category not in valid_categories:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid category. Valid options: Low Stress, Medium Stress, High Stress'
+                }), 400
+            query_filter['stress_category'] = category
+        
+        # Sorting options
+        sort_order = -1  # Default: newest first
+        sort_param = request.args.get('sort')
+        if sort_param == 'oldest':
+            sort_order = 1
+        
+        # Pagination parameters
+        try:
+            limit = int(request.args.get('limit', 10))
+            skip = int(request.args.get('skip', 0))
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid limit or skip value'
+            }), 400
+        
+        # Query database with filters
+        cursor = predictions_collection.find(query_filter).sort('timestamp', sort_order).skip(skip).limit(limit)
+        
+        # Format results
+        predictions = []
+        for doc in cursor:
+            predictions.append({
+                'id': str(doc['_id']),
+                'timestamp': doc['timestamp'].isoformat(),
+                'stress_level': doc['predicted_stress_level'],
+                'stress_category': doc['stress_category'],
+                'input_summary': {
+                    'sleep_quality': doc['input_data'].get('quality_of_sleep'),
+                    'physical_activity': doc['input_data'].get('physical_activity_level'),
+                    'daily_steps': doc['input_data'].get('daily_steps')
+                }
+            })
+        
+        # Get total count for pagination
+        total_count = predictions_collection.count_documents(query_filter)
+        
+        return jsonify({
+            'success': True,
+            'predictions': predictions,
+            'total_count': total_count,
+            'returned_count': len(predictions)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error fetching stress history: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to fetch stress history: {str(e)}'
+        }), 500
+
 
 @app.errorhandler(404)
 def not_found(error):

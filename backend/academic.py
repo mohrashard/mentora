@@ -428,6 +428,84 @@ def predict_academic_performance():
         logger.error(f"Prediction error: {str(e)}")
         return jsonify({'message': 'Internal server error during prediction'}), 500
 
+
+
+@app.route('/academichistory', methods=['GET'])
+def get_academic_history():
+    """Get prediction history for a user with optional filters"""
+    try:
+        # Get parameters from query string
+        user_id = request.args.get('user_id')
+        from_date = request.args.get('from_date')
+        to_date = request.args.get('to_date')
+        addiction_score_min = request.args.get('addiction_score_min')
+        addiction_score_max = request.args.get('addiction_score_max')
+        
+        # Validate required user_id
+        if not user_id:
+            logger.warning("Missing user_id in academic history request")
+            return jsonify({'message': 'User ID is required'}), 400
+        
+        # Build query filters
+        query = {'user_id': user_id}
+        
+        # Date range filter
+        if from_date or to_date:
+            date_filter = {}
+            if from_date:
+                try:
+                    date_filter['$gte'] = datetime.fromisoformat(from_date)
+                except (ValueError, TypeError):
+                    return jsonify({'message': 'Invalid from_date format. Use ISO format'}), 400
+            if to_date:
+                try:
+                    # Include entire end date
+                    to_date_dt = datetime.fromisoformat(to_date)
+                    date_filter['$lte'] = to_date_dt.replace(hour=23, minute=59, second=59)
+                except (ValueError, TypeError):
+                    return jsonify({'message': 'Invalid to_date format. Use ISO format'}), 400
+            query['timestamp'] = date_filter
+        
+        # Addiction score filter
+        if addiction_score_min or addiction_score_max:
+            score_filter = {}
+            try:
+                if addiction_score_min:
+                    score_filter['$gte'] = int(addiction_score_min)
+                if addiction_score_max:
+                    score_filter['$lte'] = int(addiction_score_max)
+                query['predictions.addiction_score'] = score_filter
+            except ValueError:
+                return jsonify({'message': 'Addiction scores must be integers'}), 400
+        
+        # Fetch history from MongoDB
+        history = students_collection.find(query).sort('timestamp', -1)
+        
+        # Format results
+        results = []
+        for doc in history:
+            results.append({
+                'prediction_id': str(doc['_id']),
+                'timestamp': doc['timestamp'].isoformat(),
+                'local_timestamp': doc['input_data'].get('local_timestamp', ''),
+                'academic_impact': doc['predictions']['affects_academic_performance'],
+                'addiction_score': doc['predictions']['addiction_score'],
+                'avg_daily_usage': doc['input_data']['avg_daily_usage_hours'],
+                'sleep_hours': doc['input_data']['sleep_hours_per_night'],
+                'mental_health_score': doc['input_data']['mental_health_score']
+            })
+        
+        return jsonify({
+            'user_id': user_id,
+            'count': len(results),
+            'history': results
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching academic history: {str(e)}")
+        return jsonify({'message': 'Error fetching history data'}), 500
+
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""

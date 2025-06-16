@@ -426,6 +426,75 @@ def health_check():
             'error': str(e)
         }), 200
 
+
+@app.route('/mentalhistory', methods=['GET'])
+def get_mental_history():
+    """Get mental health history for a user with filtering options"""
+    try:
+        # Get query parameters
+        user_id = request.args.get('user_id')
+        limit = int(request.args.get('limit', 10))
+        skip = int(request.args.get('skip', 0))
+        sort_direction = int(request.args.get('sort', -1))  
+        from_date = request.args.get('from_date')
+        to_date = request.args.get('to_date')
+        
+        if not user_id:
+            return jsonify({'error': 'User ID is required'}), 400
+            
+        # Validate user ID format
+        if not ObjectId.is_valid(user_id):
+            return jsonify({'error': 'Invalid user ID format'}), 400
+        
+        # Build query filter
+        query_filter = {'user_id': user_id}
+        
+        # Add date range filter if provided
+        if from_date or to_date:
+            date_filter = {}
+            try:
+                if from_date:
+                    date_filter['$gte'] = datetime.fromisoformat(from_date)
+                if to_date:
+                    date_filter['$lte'] = datetime.fromisoformat(to_date)
+                query_filter['timestamp'] = date_filter
+            except ValueError:
+                return jsonify({'error': 'Invalid date format. Use ISO format (YYYY-MM-DDTHH:MM:SS)'}), 400
+        
+        # Get total count of records
+        total_count = mental_health_collection.count_documents(query_filter)
+        
+        # Get paginated results
+        history = list(mental_health_collection.find(
+            query_filter,
+            {'_id': 0, 'user_id': 0}
+        ).sort('timestamp', sort_direction).skip(skip).limit(limit))
+        
+        # Convert datetime objects to ISO format
+        for record in history:
+            if 'timestamp' in record:
+                record['timestamp'] = record['timestamp'].isoformat()
+            if 'created_at' in record:
+                record['created_at'] = record['created_at'].isoformat()
+        
+        return jsonify({
+            'user_id': user_id,
+            'history': history,
+            'pagination': {
+                'total': total_count,
+                'returned': len(history),
+                'limit': limit,
+                'skip': skip,
+                'sort_direction': sort_direction
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Mental history endpoint error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Endpoint not found'}), 404

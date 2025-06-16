@@ -7,15 +7,10 @@ const StressPrediction = () => {
       useEffect(() => {
       document.title = 'Mentora | Stress Prediction';
     }, []);
-  // Get current user ID
   const userId = localStorage.getItem("user_id") || "default_user";
-  
-  // Create user-specific keys
   const stepKey = `stressStep_${userId}`;
   const lastPredictionKey = `lastStressPrediction_${userId}`;
   const historyKey = `stressPredictionHistory_${userId}`;
-
-  // Initial form state
   const initialFormState = {
     sleep_duration: "",
     quality_of_sleep: "",
