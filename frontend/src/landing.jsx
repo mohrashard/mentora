@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "@google/model-viewer";
 import "./Landing.css";
 
+
 const Landing = () => {
   const [activeSection, setActiveSection] = useState("home");
   const [showLoginDropdown, setShowLoginDropdown] = useState(false);
@@ -63,6 +64,8 @@ const Landing = () => {
   const handleGetStarted = () => {
     navigate("/register");
   };
+
+
 
   // Handle model loading
   useEffect(() => {
@@ -207,6 +210,7 @@ const Landing = () => {
   };
 
   return (
+
     <div className="landing-container">
       {/* Animated Background */}
       <div className="animated-background">

@@ -36,6 +36,10 @@ const ProfilePage = () => {
   const [errors, setErrors] = useState({});
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
+          useEffect(() => {
+          document.title = 'Mentora | Profile';
+        }, []);
+
   useEffect(() => {
     if (userId !== "default_user") {
       fetchProfileData();

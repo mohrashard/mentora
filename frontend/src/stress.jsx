@@ -3,6 +3,10 @@ import Sidebar from "./components/Sidebar";
 import "./stress.css";
 
 const StressPrediction = () => {
+
+      useEffect(() => {
+      document.title = 'Mentora | Stress Prediction';
+    }, []);
   // Get current user ID
   const userId = localStorage.getItem("user_id") || "default_user";
   

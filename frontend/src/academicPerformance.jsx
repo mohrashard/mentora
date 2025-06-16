@@ -82,6 +82,10 @@ const SocialMediaPredictor = () => {
     return () => clearInterval(interval);
   }, []);
 
+          useEffect(() => {
+          document.title = 'Mentora | Academic Performance';
+        }, []);
+
   useEffect(() => {
     setAnimationKey(prev => prev + 1);
   }, [currentStep]);

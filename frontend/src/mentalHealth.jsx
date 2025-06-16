@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import "./mentalHealth.css";
 
+
+
+
 // Get local date-time string in ISO format without timezone conversion
 const getLocalDateTimeString = () => {
   const now = new Date();
@@ -96,6 +99,11 @@ const generatePersonalizedTips = (resultsData) => {
 };
 
 const MentalHealthPredictionForm = () => {
+
+        useEffect(() => {
+        document.title = 'Mentora | Mental Health';
+      }, []);
+
   const userId = localStorage.getItem('user_id') || 'default_user';
   
   const [currentStep, setCurrentStep] = useState(1);

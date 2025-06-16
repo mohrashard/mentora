@@ -216,6 +216,10 @@ const MobileUsageAnalyzer = () => {
     },
   ];
 
+          useEffect(() => {
+          document.title = 'Mentora | Mobile Addiction';
+        }, []);
+
   useEffect(() => {
     const storedUserId =
       localStorage.getItem("user_id") || sessionStorage.getItem("user_id");
