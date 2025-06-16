@@ -7,6 +7,7 @@ import Landing from './landing';
 import StressPrediction from './stress';
 import MentalHealthPredictionForm from './mentalHealth';
 import MobileUsageAnalyzer from './mobileAddiction';
+import SocialMediaImpactPredictor from './academicPerformance';
 import './App.css';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
           <Route path="/stress" element={<StressPrediction />} />
           <Route path="/mentalHealth" element={<MentalHealthPredictionForm />} />
           <Route path="/mobileAddiction" element={<MobileUsageAnalyzer />} />
+          <Route path="/academicPerformance" element={<SocialMediaImpactPredictor/>}/>
         </Routes>
       </div>
     </Router>

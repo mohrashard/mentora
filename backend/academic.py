@@ -145,31 +145,44 @@ def predict_social_media_impact(age, gender, academic_level, country, avg_daily_
     Function to predict both academic performance impact and addiction score
     """
     try:
+        # Create input array with fallback for unknown categories
+        def safe_transform(encoder, value, fallback):
+            try:
+                return encoder.transform([value])[0]
+            except ValueError:
+                logger.warning(f"Unknown value '{value}' in {encoder.classes_}. Using fallback: {fallback}")
+                return encoder.transform([fallback])[0]
+                
         # Create input array
         input_data = np.array([[
             float(age),
-            label_encoders['Gender'].transform([gender])[0],
-            label_encoders['Academic_Level'].transform([academic_level])[0],
-            label_encoders['Country'].transform([country])[0],
+            safe_transform(label_encoders['Gender'], gender, 'Other'),
+            safe_transform(label_encoders['Academic_Level'], academic_level, 'Undergraduate'),
+            safe_transform(label_encoders['Country'], country, 'Other'),
             float(avg_daily_usage),
-            label_encoders['Most_Used_Platform'].transform([platform])[0],
+            safe_transform(label_encoders['Most_Used_Platform'], platform, 'Other'),
             float(sleep_hours),
             int(mental_health_score),
-            label_encoders['Relationship_Status'].transform([relationship_status])[0],
+            safe_transform(label_encoders['Relationship_Status'], relationship_status, 'Single'),
             int(conflicts)
         ]])
         
-        # Scale the input
+        # Scale the features
         input_scaled = scaler.transform(input_data)
         
         # Make predictions
-        academic_pred = academic_model.predict(input_scaled)[0]
-        addiction_pred = addiction_model.predict(input_scaled)[0]
+        academic_prediction = academic_model.predict(input_scaled)[0]
+        addiction_prediction = addiction_model.predict(input_scaled)[0]
         
-        # Convert academic prediction back to text
-        academic_result = "Yes" if academic_pred == 1 else "No"
+        # Convert academic prediction to Yes/No
+        academic_result = "Yes" if academic_prediction == 1 else "No"
         
-        return academic_result, round(float(addiction_pred), 2)
+        # Round addiction score to nearest integer
+        addiction_score = int(round(addiction_prediction))
+        
+        logger.info(f"Prediction successful: Academic={academic_result}, Addiction={addiction_score}")
+        
+        return academic_result, addiction_score
         
     except Exception as e:
         logger.error(f"Prediction error: {str(e)}")
@@ -251,9 +264,44 @@ def home():
         'status': 'Server is running',
         'endpoints': {
             'predict': '/predictacademicperformance (POST)',
-            'health': '/health (GET)'
+            'health': '/health (GET)',
+            'get_today_prediction': '/get_today_prediction (GET)'
         }
     }), 200
+
+@app.route('/get_today_prediction', methods=['GET'])
+def get_today_prediction():
+    """Get today's prediction for a user"""
+    try:
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({'message': 'User ID is required'}), 400
+        
+        # Get today's date
+        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow = datetime.utcnow().replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        # Find today's prediction for this user
+        prediction = students_collection.find_one({
+            'user_id': user_id,
+            'timestamp': {
+                '$gte': today,
+                '$lte': tomorrow
+            }
+        })
+        
+        if prediction:
+            return jsonify({
+                'results': prediction['predictions'],
+                'personalized_tips': prediction['personalized_tips'],
+                'timestamp': prediction['timestamp'].isoformat()
+            }), 200
+        else:
+            return jsonify({'message': 'No prediction found for today'}), 404
+            
+    except Exception as e:
+        logger.error(f"Error fetching today's prediction: {str(e)}")
+        return jsonify({'message': 'Error fetching prediction'}), 500
 
 @app.route('/predictacademicperformance', methods=['POST'])
 def predict_academic_performance():

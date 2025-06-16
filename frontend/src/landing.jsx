@@ -1,8 +1,6 @@
-
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-
+import "@google/model-viewer";
 import "./Landing.css";
 
 const Landing = () => {
@@ -12,12 +10,76 @@ const Landing = () => {
   const [openFAQ, setOpenFAQ] = useState(null);
   const [counters, setCounters] = useState({ cost: 0, users: 0, accuracy: 0 });
   const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [modelLoaded, setModelLoaded] = useState(false);
   const aboutSectionRef = useRef(null);
+  const modelViewerRef = useRef(null);
 
   const navigate = useNavigate();
+
+  const testimonials = [
+    {
+      name: "Sarah Chen",
+      role: "Mental Health Advocate",
+      text: "Mentora helped me understand my digital wellness patterns in ways I never imagined.",
+      rating: 5,
+    },
+    {
+      name: "Dr. Michael Rodriguez",
+      role: "Clinical Psychologist",
+      text: "The AI insights are remarkably accurate and provide valuable therapeutic guidance.",
+      rating: 5,
+    },
+    {
+      name: "Emma Thompson",
+      role: "Wellness Coach",
+      text: "My clients love how Mentora makes mental wellness accessible and personalized.",
+      rating: 5,
+    },
+  ];
+
+  const faqs = [
+    {
+      question: "How does Mentora analyze my digital behavior?",
+      answer:
+        "Mentora uses advanced AI algorithms to analyze patterns in your digital interactions, screen time, and app usage to provide personalized mental wellness insights.",
+    },
+    {
+      question: "Is my data secure and private?",
+      answer:
+        "Absolutely. We use end-to-end encryption and never share your personal data. All analysis is done locally on your device when possible.",
+    },
+    {
+      question: "How accurate are the AI insights?",
+      answer:
+        "Our AI models achieve 95% accuracy in behavioral pattern recognition, validated through clinical studies and user feedback.",
+    },
+    {
+      question: "Can I use Mentora alongside traditional therapy?",
+      answer:
+        "Yes! Mentora is designed to complement, not replace, professional mental health care. Many therapists recommend it to their clients.",
+    },
+  ];
+
   const handleGetStarted = () => {
-    navigate('/register');
+    navigate("/register");
   };
+
+  // Handle model loading
+  useEffect(() => {
+    const modelViewer = modelViewerRef.current;
+    if (modelViewer) {
+      const handleLoad = () => setModelLoaded(true);
+      const handleError = () => setModelLoaded(false);
+
+      modelViewer.addEventListener("load", handleLoad);
+      modelViewer.addEventListener("error", handleError);
+
+      return () => {
+        modelViewer.removeEventListener("load", handleLoad);
+        modelViewer.removeEventListener("error", handleError);
+      };
+    }
+  }, []);
 
   // Scroll spy effect
   useEffect(() => {
@@ -100,51 +162,7 @@ const Landing = () => {
     }, 4000);
 
     return () => clearInterval(interval);
-  }, []);
-
-  const testimonials = [
-    {
-      name: "Sarah Chen",
-      role: "Mental Health Advocate",
-      text: "Mentora helped me understand my digital wellness patterns in ways I never imagined.",
-      rating: 5,
-    },
-    {
-      name: "Dr. Michael Rodriguez",
-      role: "Clinical Psychologist",
-      text: "The AI insights are remarkably accurate and provide valuable therapeutic guidance.",
-      rating: 5,
-    },
-    {
-      name: "Emma Thompson",
-      role: "Wellness Coach",
-      text: "My clients love how Mentora makes mental wellness accessible and personalized.",
-      rating: 5,
-    },
-  ];
-
-  const faqs = [
-    {
-      question: "How does Mentora analyze my digital behavior?",
-      answer:
-        "Mentora uses advanced AI algorithms to analyze patterns in your digital interactions, screen time, and app usage to provide personalized mental wellness insights.",
-    },
-    {
-      question: "Is my data secure and private?",
-      answer:
-        "Absolutely. We use end-to-end encryption and never share your personal data. All analysis is done locally on your device when possible.",
-    },
-    {
-      question: "How accurate are the AI insights?",
-      answer:
-        "Our AI models achieve 95% accuracy in behavioral pattern recognition, validated through clinical studies and user feedback.",
-    },
-    {
-      question: "Can I use Mentora alongside traditional therapy?",
-      answer:
-        "Yes! Mentora is designed to complement, not replace, professional mental health care. Many therapists recommend it to their clients.",
-    },
-  ];
+  }, [testimonials.length]);
 
   const scrollToSection = (sectionId) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
@@ -167,9 +185,8 @@ const Landing = () => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('user_id', data.user_id);
-        console.log('Login successful:', data);
-        navigate('/dashboard'); 
+        console.log("Login successful:", data);
+        navigate("/dashboard");
       } else {
         alert(data.message || "Login failed");
       }
@@ -184,6 +201,11 @@ const Landing = () => {
     setLoginData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleContactSubmit = (e) => {
+    e.preventDefault();
+    alert("Message sent! We'll get back to you soon.");
+  };
+
   return (
     <div className="landing-container">
       {/* Animated Background */}
@@ -192,11 +214,28 @@ const Landing = () => {
         <div className="particles"></div>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation with Logo */}
       <nav className="navbar" role="navigation" aria-label="Main navigation">
         <div className="nav-container">
           <div className="nav-logo">
-            <div className="logo-placeholder" aria-label="Mentora Logo"></div>
+            <a href="/" className="logo-link" aria-label="Mentora Homepage">
+              <img
+                src="/MentoraLogo.png"
+                alt="Mentora Logo"
+                className="logo-image"
+                onError={(e) => {
+                  e.target.style.display = "none";
+                  e.target.nextElementSibling.style.display = "block";
+                }}
+              />
+              <div
+                className="logo-placeholder"
+                style={{ display: "none" }}
+                aria-label="Mentora Logo"
+              >
+                🧠
+              </div>
+            </a>
             <span className="logo-text">Mentora</span>
           </div>
 
@@ -271,11 +310,197 @@ const Landing = () => {
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {/* Hero Section with Enhanced 3D Brain Model */}
       <section id="home" className="hero-section">
         <div className="hero-content">
+          {/* Enhanced 3D Brain Model Container */}
           <div className="brain-model-container">
-            <div className="brain-model" aria-label="3D Brain Model"></div>
+            <div className="model-background-glow"></div>
+
+            {/* Model Viewer with smaller brain model */}
+            <model-viewer
+              ref={modelViewerRef}
+              src="/mentoraBrain.glb"
+              alt="3D Brain Model representing AI mental wellness analysis"
+              auto-rotate
+              auto-rotate-delay="2000"
+              rotation-per-second="15deg"
+              camera-controls
+              camera-orbit="45deg 75deg 4.5m"
+              min-camera-orbit="auto auto 3.5m"
+              max-camera-orbit="auto auto 8m"
+              field-of-view="25deg"
+              scale="0.9 0.9 0.9"
+              shadow-intensity="0.8"
+              shadow-softness="0.7"
+              environment-image="legacy"
+              exposure="0.8"
+              loading="eager"
+              reveal="auto"
+              interaction-prompt="none"
+              ar-status="not-presenting"
+              tone-mapping="aces"
+              className="brain-model-viewer"
+              style={{
+                width: "90%",
+                height: "90%",
+                maxWidth: "400px",
+                background: "transparent",
+                "--poster-color": "transparent",
+              }}
+            >
+              {/* Enhanced Loading Placeholder */}
+              <div className="model-loading-placeholder" slot="poster">
+                <div className="loading-brain-container">
+                  <div className="loading-brain-icon">
+                    <svg
+                      width="80"
+                      height="80"
+                      viewBox="0 0 100 100"
+                      fill="none"
+                    >
+                      <path
+                        d="M50 10C65 10 78 18 85 30C88 38 88 47 85 55C82 63 75 68 70 72C65 76 58 78 50 78C42 78 35 76 30 72C25 68 18 63 15 55C12 47 12 38 15 30C22 18 35 10 50 10Z"
+                        fill="url(#brainGradient)"
+                        className="brain-shape"
+                      />
+                      <defs>
+                        <linearGradient
+                          id="brainGradient"
+                          x1="0%"
+                          y1="0%"
+                          x2="100%"
+                          y2="100%"
+                        >
+                          <stop offset="0%" stopColor="#8B5CF6" />
+                          <stop offset="50%" stopColor="#EC4899" />
+                          <stop offset="100%" stopColor="#F59E0B" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                  </div>
+                  <div className="loading-text">
+                    <p>Loading AI Brain Model...</p>
+                    <div className="loading-dots">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Error Fallback */}
+              <div className="model-error-fallback" slot="error">
+                <div className="error-brain-container">
+                  <div className="static-brain-icon">🧠</div>
+                  <p>3D Model Unavailable</p>
+                  <small>Showing static representation</small>
+                </div>
+              </div>
+            </model-viewer>
+
+            {/* Enhanced Floating Particles */}
+            <div className="floating-particles">
+              <div className="particle particle-1"></div>
+              <div className="particle particle-2"></div>
+              <div className="particle particle-3"></div>
+              <div className="particle particle-4"></div>
+              <div className="particle particle-5"></div>
+              <div className="particle particle-6"></div>
+            </div>
+
+            {/* Neural Network Overlay */}
+            <div className="neural-network-overlay">
+              <svg width="100%" height="100%" className="neural-svg">
+                <defs>
+                  <linearGradient
+                    id="neuralGradient"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
+                    <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="#EC4899" stopOpacity="0.1" />
+                  </linearGradient>
+                </defs>
+                <circle
+                  cx="20%"
+                  cy="30%"
+                  r="2"
+                  fill="url(#neuralGradient)"
+                  className="neural-node"
+                >
+                  <animate
+                    attributeName="r"
+                    values="2;4;2"
+                    dur="2s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <circle
+                  cx="80%"
+                  cy="40%"
+                  r="2"
+                  fill="url(#neuralGradient)"
+                  className="neural-node"
+                >
+                  <animate
+                    attributeName="r"
+                    values="2;4;2"
+                    dur="2.5s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <circle
+                  cx="60%"
+                  cy="70%"
+                  r="2"
+                  fill="url(#neuralGradient)"
+                  className="neural-node"
+                >
+                  <animate
+                    attributeName="r"
+                    values="2;4;2"
+                    dur="3s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <line
+                  x1="20%"
+                  y1="30%"
+                  x2="80%"
+                  y2="40%"
+                  stroke="url(#neuralGradient)"
+                  strokeWidth="1"
+                  opacity="0.5"
+                >
+                  <animate
+                    attributeName="opacity"
+                    values="0.2;0.8;0.2"
+                    dur="3s"
+                    repeatCount="indefinite"
+                  />
+                </line>
+                <line
+                  x1="80%"
+                  y1="40%"
+                  x2="60%"
+                  y2="70%"
+                  stroke="url(#neuralGradient)"
+                  strokeWidth="1"
+                  opacity="0.5"
+                >
+                  <animate
+                    attributeName="opacity"
+                    values="0.2;0.8;0.2"
+                    dur="2.5s"
+                    repeatCount="indefinite"
+                  />
+                </line>
+              </svg>
+            </div>
           </div>
 
           <div className="hero-text">
@@ -285,13 +510,13 @@ const Landing = () => {
             </p>
 
             <div className="hero-ctas">
-                  <button
-      className="cta-primary"
-      aria-label="Get started with Mentora"
-      onClick={handleGetStarted}
-    >
-      Get Started
-    </button>
+              <button
+                className="cta-primary"
+                aria-label="Get started with Mentora"
+                onClick={handleGetStarted}
+              >
+                Get Started
+              </button>
               <button className="cta-secondary" aria-label="Watch demo video">
                 See Demo
               </button>
@@ -530,7 +755,10 @@ const Landing = () => {
 
           <div className="contact-container">
             <div className="contact-form-container">
-              <form className="contact-form glass-card">
+              <form
+                className="contact-form glass-card"
+                onSubmit={handleContactSubmit}
+              >
                 <div className="form-group">
                   <input type="text" id="name" required />
                   <label htmlFor="name" className="floating-label">
@@ -553,7 +781,7 @@ const Landing = () => {
                 </div>
 
                 <div className="form-group">
-                  <textarea id="message" rows="5" required></textarea>
+                  <textarea id="message" rows={5} required></textarea>
                   <label htmlFor="message" className="floating-label">
                     Message
                   </label>
@@ -616,8 +844,6 @@ const Landing = () => {
               </div>
             ))}
           </div>
-
-          
         </div>
       </section>
 

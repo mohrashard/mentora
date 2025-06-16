@@ -619,12 +619,6 @@ const MobileUsageAnalyzer = () => {
             <h4 className="section-title">Analysis Details</h4>
             <div className="info-grid">
               <div className="info-item">
-                <span className="info-label">Model Used</span>
-                <span className="info-value">
-                  {result.analysis_info.model_used}
-                </span>
-              </div>
-              <div className="info-item">
                 <span className="info-label">Features Analyzed</span>
                 <span className="info-value">
                   {result.analysis_info.features_analyzed}
@@ -674,9 +668,6 @@ const MobileUsageAnalyzer = () => {
                 You've already taken today's assessment.
                 <br />
                 You can take the next one after midnight.
-              </div>
-              <div className="next-date">
-                Next available date: <strong>{nextAvailableDate}</strong>
               </div>
             </div>
 

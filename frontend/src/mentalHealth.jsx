@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import "./mentalHealth.css";
 
-// Helper function to get today's date string (YYYY-MM-DD)
+
 const getTodayDateString = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return today.toISOString().split('T')[0];
 };
 
-// Helper function to get tomorrow's date string (YYYY-MM-DD)
+
 const getTomorrowDateString = () => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -19,7 +19,7 @@ const getTomorrowDateString = () => {
 
 const MHP_STORAGE_KEY = 'mental_health_prediction_last';
 
-// Helper function to generate personalized tips
+
 const generatePersonalizedTips = (resultsData) => {
   const tips = [];
   
@@ -91,7 +91,6 @@ const generatePersonalizedTips = (resultsData) => {
 };
 
 const MentalHealthPredictionForm = () => {
-  // Get user ID from localStorage
   const userId = localStorage.getItem('user_id') || 'default_user';
   
   const [currentStep, setCurrentStep] = useState(1);
@@ -207,7 +206,7 @@ const MentalHealthPredictionForm = () => {
                 r.includes('Consider') || r.includes('Try') || r.includes('reduce') || r.includes('monitor')
               ).length
             },
-            inputData: latest.input_data // Store input data for tips generation
+            inputData: latest.input_data 
           };
           
           setLastPrediction(transformed);
@@ -478,9 +477,6 @@ const MentalHealthPredictionForm = () => {
                 You've already taken today's assessment.<br />
                 You can take the next one after midnight.
               </div>
-              <div className="next-date">
-                Next available date: <strong>{nextAvailableDate}</strong>
-              </div>
             </div>
 
             <div className="results-container">
@@ -502,45 +498,7 @@ const MentalHealthPredictionForm = () => {
                 </div>
               </div>
 
-              <div className="confidence-scores">
-                <h3>Confidence Scores:</h3>
-                <div className="confidence-item">
-                  <span>Mental Health:</span>
-                  <div>
-                    <div className="confidence-bar">
-                      <div 
-                        className="confidence-fill" 
-                        style={{ width: `${resultsData.predictions.confidence_scores.mental_health * 100}%` }}
-                      ></div>
-                    </div>
-                    <span>{(resultsData.predictions.confidence_scores.mental_health * 100).toFixed(1)}%</span>
-                  </div>
-                </div>
-                <div className="confidence-item">
-                  <span>Depression:</span>
-                  <div>
-                    <div className="confidence-bar">
-                      <div 
-                        className="confidence-fill" 
-                        style={{ width: `${resultsData.predictions.confidence_scores.depression * 100}%` }}
-                      ></div>
-                    </div>
-                    <span>{(resultsData.predictions.confidence_scores.depression * 100).toFixed(1)}%</span>
-                  </div>
-                </div>
-                <div className="confidence-item">
-                  <span>Anxiety:</span>
-                  <div>
-                    <div className="confidence-bar">
-                      <div 
-                        className="confidence-fill" 
-                        style={{ width: `${resultsData.predictions.confidence_scores.anxiety * 100}%` }}
-                      ></div>
-                    </div>
-                    <span>{(resultsData.predictions.confidence_scores.anxiety * 100).toFixed(1)}%</span>
-                  </div>
-                </div>
-              </div>
+
 
               <div className="recommendations">
                 <h3>Recommendations:</h3>
