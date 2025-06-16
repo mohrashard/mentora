@@ -8,7 +8,6 @@ import {
   GraduationCap, 
   User, 
   LogOut,
-  Sparkles,
   Menu,
   X
 } from 'lucide-react';
@@ -107,12 +106,12 @@ const Sidebar = () => {
                 }}
               />
               <div className="logo-fallback">
-                <Sparkles className="logo-icon" />
+                <Brain className="logo-icon" />
               </div>
             </div>
             <div className="logo-text-container">
               <h2 className="logo-text">Mentora</h2>
-              <p className="logo-subtitle">AI Health Platform</p>
+              <p className="logo-subtitle">Mental Health Mentor</p>
             </div>
           </div>
         </div>
@@ -136,11 +135,9 @@ const Sidebar = () => {
                   >
                     <div className="nav-icon-container">
                       <IconComponent className="nav-icon" />
-                      <div className="nav-icon-glow"></div>
                     </div>
                     <span className="nav-text">{item.name}</span>
                     <div className="nav-indicator"></div>
-                    <div className="nav-ripple"></div>
                   </button>
                 </li>
               );
@@ -152,10 +149,8 @@ const Sidebar = () => {
           <button className="logout-btn" onClick={handleLogout}>
             <div className="nav-icon-container">
               <LogOut className="nav-icon" />
-              <div className="logout-icon-glow"></div>
             </div>
             <span className="nav-text">Logout</span>
-            <div className="logout-ripple"></div>
           </button>
         </div>
       </div>

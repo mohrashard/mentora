@@ -1,4 +1,4 @@
-##register.py
+## register.py
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import re
 from datetime import datetime, timedelta
 import logging
+from bson import ObjectId
 
 
 load_dotenv()
@@ -137,6 +138,7 @@ def home():
             'signup': '/signup (POST)',
             'login': '/login (POST)',
             'user': '/user/<user_id> (GET)',
+            'profile': '/profile/<user_id> (GET, PUT)',
             'health': '/health (GET)'
         }
     }), 200
@@ -181,7 +183,9 @@ def signup():
             'current_streak': 0,
             'max_streak': 0,
             'last_login_date': None,
-            'created_at': datetime.utcnow()
+            'created_at': datetime.utcnow(),
+            'streak_reset_month': None,
+            'streak_resets_this_month': 0
         }
         
         # Insert new user into MongoDB
@@ -268,14 +272,14 @@ def login():
         # Return successful login response with user_id
         return jsonify({
             'message': 'Login successful',
-            'user_id': str(user['_id']),  # Include user_id here
+            'user_id': str(user['_id']),
             'user': {
                 'full_name': user['full_name'],
                 'email': user['email'],
                 'current_streak': current_streak,
                 'max_streak': max_streak
             },
-            'redirect': f'/dashboard/{str(user["_id"])}'  # Include user_id in redirect URL
+            'redirect': f'/dashboard/{str(user["_id"])}'
         }), 200
         
     except Exception as e:
@@ -286,8 +290,6 @@ def login():
 def get_user(user_id):
     """Get user data by user_id"""
     try:
-        from bson import ObjectId
-        
         # Validate user_id format
         if not ObjectId.is_valid(user_id):
             logger.warning(f"Invalid user_id format: {user_id}")
@@ -320,6 +322,145 @@ def get_user(user_id):
         
     except Exception as e:
         logger.error(f"Get user error: {str(e)}")
+        return jsonify({'message': 'Internal server error'}), 500
+
+@app.route('/profile/<user_id>', methods=['GET', 'PUT'])
+def user_profile(user_id):
+    """User profile retrieval and update endpoint"""
+    try:
+        # Validate user_id format
+        if not ObjectId.is_valid(user_id):
+            return jsonify({'message': 'Invalid user ID format'}), 400
+            
+        # Find user in database
+        user = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+
+        # GET: Return profile data
+        if request.method == 'GET':
+            # Calculate remaining streak resets
+            current_month = datetime.utcnow().strftime("%Y-%m")
+            streak_reset_month = user.get('streak_reset_month', "")
+            streak_resets_this_month = user.get('streak_resets_this_month', 0)
+            remaining_resets = 3 - streak_resets_this_month if streak_reset_month == current_month else 3
+
+            profile_data = {
+                'user_id': str(user['_id']),
+                'full_name': user['full_name'],
+                'email': user['email'],
+                'age': user['age'],
+                'gender': user['gender'],
+                'occupation_or_academic_level': user['occupation_or_academic_level'],
+                'country': user['country'],
+                'current_streak': user.get('current_streak', 0),
+                'max_streak': user.get('max_streak', 0),
+                'last_login_date': user.get('last_login_date'),
+                'created_at': user.get('created_at'),
+                'remaining_streak_resets': max(0, remaining_resets)
+            }
+            return jsonify(profile_data), 200
+
+        # PUT: Update profile data
+        elif request.method == 'PUT':
+            data = request.get_json()
+            if not data:
+                return jsonify({'message': 'No update data provided'}), 400
+
+            # Initialize update data and validation
+            update_data = {}
+            errors = {}
+            current_month = datetime.utcnow().strftime("%Y-%m")
+
+            # Handle password update
+            if 'password' in data:
+                if len(data['password']) >= 6:
+                    update_data['password'] = generate_password_hash(data['password'])
+                else:
+                    errors['password'] = 'Password must be at least 6 characters'
+
+            # Handle streak reset with monthly limits
+            if 'current_streak' in data:
+                try:
+                    new_streak = int(data['current_streak'])
+                    if new_streak < 0:
+                        errors['current_streak'] = 'Streak cannot be negative'
+                    
+                    # Check if streak is actually being changed
+                    elif new_streak != user.get('current_streak', 0):
+                        # Check reset limits
+                        streak_reset_month = user.get('streak_reset_month', "")
+                        streak_resets = user.get('streak_resets_this_month', 0)
+                        
+                        # Reset monthly counter if month changed
+                        if streak_reset_month != current_month:
+                            streak_resets = 0
+                            update_data['streak_reset_month'] = current_month
+                        
+                        # Check available resets
+                        if streak_resets >= 3:
+                            errors['current_streak'] = 'Monthly streak reset limit (3) reached'
+                        else:
+                            # Apply streak update
+                            update_data['current_streak'] = new_streak
+                            update_data['streak_resets_this_month'] = streak_resets + 1
+                            
+                            # Update max streak if needed
+                            if new_streak > user.get('max_streak', 0):
+                                update_data['max_streak'] = new_streak
+                except (TypeError, ValueError):
+                    errors['current_streak'] = 'Streak must be a positive integer'
+
+            # Handle other fields
+            allowed_fields = [
+                'full_name', 'age', 'gender', 
+                'occupation_or_academic_level', 'country'
+            ]
+            
+            for field in allowed_fields:
+                if field in data:
+                    value = str(data[field]).strip()
+                    if value:
+                        # Special validation for age
+                        if field == 'age':
+                            try:
+                                age_val = int(value)
+                                if 1 <= age_val <= 120:
+                                    update_data[field] = age_val
+                                else:
+                                    errors[field] = 'Age must be between 1-120'
+                            except (TypeError, ValueError):
+                                errors[field] = 'Invalid age format'
+                        else:
+                            update_data[field] = value
+                    else:
+                        errors[field] = f'{field.replace("_", " ").title()} cannot be empty'
+
+            # Return errors if any
+            if errors:
+                return jsonify({'errors': errors}), 400
+                
+            # Update database if valid changes
+            if update_data:
+                result = users_collection.update_one(
+                    {'_id': user['_id']},
+                    {'$set': update_data}
+                )
+                
+                if result.modified_count == 0:
+                    return jsonify({'message': 'No changes detected'}), 200
+
+            # Calculate remaining streak resets for response
+            updated_resets = update_data.get('streak_resets_this_month', user.get('streak_resets_this_month', 0))
+            remaining_resets = 3 - updated_resets
+            
+            return jsonify({
+                'message': 'Profile updated successfully',
+                'remaining_streak_resets': max(0, remaining_resets)
+            }), 200
+
+    except Exception as e:
+        logger.error(f"Profile error: {str(e)}")
         return jsonify({'message': 'Internal server error'}), 500
 
 @app.route('/health', methods=['GET'])

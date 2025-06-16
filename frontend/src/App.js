@@ -8,6 +8,7 @@ import StressPrediction from './stress';
 import MentalHealthPredictionForm from './mentalHealth';
 import MobileUsageAnalyzer from './mobileAddiction';
 import SocialMediaImpactPredictor from './academicPerformance';
+import ProfilePage from './profile';
 import './App.css';
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
           <Route path="/mentalHealth" element={<MentalHealthPredictionForm />} />
           <Route path="/mobileAddiction" element={<MobileUsageAnalyzer />} />
           <Route path="/academicPerformance" element={<SocialMediaImpactPredictor/>}/>
+          <Route path="/profile" element={<ProfilePage/>}/>
         </Routes>
       </div>
     </Router>
