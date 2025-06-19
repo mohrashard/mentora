@@ -215,10 +215,8 @@ def generate_personalized_tips(input_data, prediction):
     
     return tips[:8]  # Return maximum 8 tips
 
-
 def save_to_mongodb(user_id, input_data, prediction_result):
     """Save prediction result to MongoDB"""
-    # FIX: Proper MongoDB collection check
     if mobile_collection is None:
         logger.error("MongoDB collection not available")
         return False
@@ -229,8 +227,8 @@ def save_to_mongodb(user_id, input_data, prediction_result):
             'user_id': user_id,
             'input_data': input_data,
             'prediction_result': prediction_result,
-            'created_at': datetime.now(),
-            'date': datetime.now().strftime('%Y-%m-%d')
+            'created_at': datetime.utcnow(),  # Changed to UTC
+            'date': datetime.utcnow().strftime('%Y-%m-%d')  # Changed to UTC
         }
         
         # Insert document
@@ -245,12 +243,11 @@ def save_to_mongodb(user_id, input_data, prediction_result):
     
 def get_today_prediction_from_db(user_id):
     """Get today's prediction from MongoDB"""
-    # FIX: Proper MongoDB collection check
     if mobile_collection is None:
         return None
     
     try:
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.utcnow().strftime('%Y-%m-%d')  # Changed to UTC
         
         # Find today's prediction for the user
         prediction = mobile_collection.find_one({
@@ -287,7 +284,6 @@ def home():
             'accuracy': f"{model_metadata.get('best_accuracy', 0):.4f}" if model_metadata else 'Unknown',
             'features_count': len(feature_columns) if feature_columns else 0
         },
-        # FIX: Proper MongoDB status check
         'mongodb_status': 'Connected' if mobile_collection is not None else 'Not Connected',
         'endpoints': {
             'analyze': '/analyze_mobile_usage (POST)',
@@ -380,12 +376,12 @@ def analyze_mobile_usage():
                 'analysis_info': {
                     'model_used': model_metadata.get('best_model_name', 'Machine Learning Model'),
                     'features_analyzed': len(feature_columns),
-                    'timestamp': datetime.now().isoformat(),
+                    'timestamp': datetime.utcnow().isoformat() + 'Z',  # Changed to UTC with 'Z'
                     'user_id': user_id
                 }
             }
             
-            # Save to MongoDB - FIXED: Now properly saves to database
+            # Save to MongoDB
             save_success = save_to_mongodb(user_id, data, result)
             if save_success:
                 logger.info(f"Successfully saved prediction for user {user_id}")
@@ -426,7 +422,6 @@ def get_today_prediction():
         logger.error(f"Error retrieving today's prediction: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
-# Enhanced history endpoint with date filtering
 @app.route('/get_user_history', methods=['GET'])
 def get_user_history():
     """Get user's prediction history with optional date filtering"""
@@ -455,22 +450,28 @@ def get_user_history():
         elif end_date:
             query['date'] = {'$lte': end_date}
             
-        # FIX: Proper MongoDB collection check
         if mobile_collection is None:
             return jsonify({'error': 'Database not available'}), 500
         
         # Get user's prediction history
         history = list(mobile_collection.find(
             query,
-            {'_id': 0, 'prediction_result': 1, 'date': 1, 'created_at': 1}
+            {'_id': 0, 'prediction_result': 1, 'input_data': 1, 'date': 1, 'created_at': 1}
         ).sort('created_at', -1).limit(limit))
         
-        # Convert created_at to ISO string for JSON
+        # Convert created_at to ISO string with 'Z' for UTC
+        formatted_history = []
         for item in history:
-            item['created_at'] = item['created_at'].isoformat()
+            entry = {
+                "created_at": item['created_at'].isoformat() + 'Z',
+                "date": item['date'],
+                "input_data": item['input_data'],
+                "prediction_result": item['prediction_result']
+            }
+            formatted_history.append(entry)
         
-        logger.info(f"Retrieved {len(history)} predictions for user: {user_id}")
-        return jsonify(history), 200
+        logger.info(f"Retrieved {len(formatted_history)} predictions for user: {user_id}")
+        return jsonify(formatted_history), 200
         
     except Exception as e:
         logger.error(f"Error retrieving user history: {str(e)}")
@@ -485,16 +486,14 @@ def health_check():
         
         # Count today's predictions
         today_count = 0
-        # FIX: Proper MongoDB collection check
         if mobile_collection is not None:
-            today = datetime.now().strftime('%Y-%m-%d')
+            today = datetime.utcnow().strftime('%Y-%m-%d')  # Changed to UTC
             today_count = mobile_collection.count_documents({'date': today})
         
         return jsonify({
             'status': 'Server is running',
             'model_status': model_status,
             'scaler_status': scaler_status,
-            # FIX: Proper MongoDB status check
             'mongodb_status': 'Connected' if mobile_collection is not None else 'Not Connected',
             'features_loaded': len(feature_columns) if feature_columns else 0,
             'model_info': {
@@ -502,7 +501,7 @@ def health_check():
                 'accuracy': model_metadata.get('best_accuracy', 0) if model_metadata else 0
             },
             'active_predictions_today': today_count,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.utcnow().isoformat() + 'Z'  # Changed to UTC with 'Z'
         }), 200
     except Exception as e:
         logger.error(f"Health check error: {str(e)}")
@@ -533,7 +532,6 @@ if __name__ == '__main__':
         print(f"✓ Accuracy: {model_metadata.get('best_accuracy', 0):.4f}")
         print(f"✓ Features: {len(feature_columns)}")
         print(f"✓ Scaling Required: {model_metadata.get('requires_scaling', False)}")
-        # FIX: Proper MongoDB status check
         print(f"✓ MongoDB: {'Connected' if mobile_collection is not None else 'Not Connected'}")
         print(f"✓ Server will run on: http://localhost:5003")
         print(f"✓ Server will run on: http://127.0.0.1:5003")

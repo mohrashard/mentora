@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 import joblib
 import numpy as np
 import pandas as pd
@@ -253,8 +253,8 @@ def save_prediction_to_db(user_id, input_data, prediction, prediction_id=None):
         # Create document to save
         prediction_doc = {
             'user_id': user_id,
-            'prediction_id': prediction_id or datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3],
-            'timestamp': datetime.now(),
+            'prediction_id': prediction_id or datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')[:-3],
+            'timestamp': datetime.now(timezone.utc),
             'input_data': input_data,
             'predicted_stress_level': prediction,
             'stress_category': get_stress_category(prediction)
@@ -299,7 +299,7 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'model_loaded': model is not None,
         'database_connected': predictions_collection is not None
     })
@@ -370,7 +370,7 @@ def predict_stress():
                 'sleep_quality': data.get('quality_of_sleep', 7.0),
                 'physical_activity': data.get('physical_activity_level', 50)
             },
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'database_id': db_id
         }
         
@@ -383,7 +383,6 @@ def predict_stress():
             'success': False,
             'error': f'Prediction failed: {str(e)}'
         }), 500
-
 
 @app.route('/predictions/history', methods=['GET'])
 def get_prediction_history():
@@ -421,7 +420,7 @@ def get_prediction_history():
             predictions.append({
                 'id': str(doc['_id']),
                 'prediction_id': doc.get('prediction_id', str(doc['_id'])),
-                'timestamp': doc['timestamp'].isoformat(),
+                'timestamp': doc['timestamp'].replace(tzinfo=timezone.utc).isoformat(),
                 'predicted_stress_level': doc['predicted_stress_level'],
                 'stress_category': doc['stress_category'],
                 'input_data': doc['input_data']
@@ -472,7 +471,7 @@ def get_prediction_by_id(prediction_id):
         prediction = {
             'id': str(doc['_id']),
             'prediction_id': doc.get('prediction_id', str(doc['_id'])),
-            'timestamp': doc['timestamp'].isoformat(),
+            'timestamp': doc['timestamp'].replace(tzinfo=timezone.utc).isoformat(),
             'predicted_stress_level': doc['predicted_stress_level'],
             'stress_category': doc['stress_category'],
             'input_data': doc['input_data']
@@ -591,6 +590,7 @@ def get_stress_history():
         # Build query filters
         query_filter = {'user_id': user_id}
         
+        # Note: start_date and end_date should be in UTC (YYYY-MM-DD format)
         # Date range filtering
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
@@ -664,7 +664,7 @@ def get_stress_history():
         for doc in cursor:
             predictions.append({
                 'id': str(doc['_id']),
-                'timestamp': doc['timestamp'].isoformat(),
+                'timestamp': doc['timestamp'].replace(tzinfo=timezone.utc).isoformat(),
                 'stress_level': doc['predicted_stress_level'],
                 'stress_category': doc['stress_category'],
                 'input_summary': {
@@ -690,7 +690,6 @@ def get_stress_history():
             'success': False,
             'error': f'Failed to fetch stress history: {str(e)}'
         }), 500
-
 
 @app.errorhandler(404)
 def not_found(error):

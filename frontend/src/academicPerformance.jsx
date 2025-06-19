@@ -21,33 +21,52 @@ import {
 } from 'lucide-react';
 import './SocialMediaPredictor.css';
 
-const SOCIAL_MEDIA_STORAGE_KEY = 'social_media_last_prediction';
+let socialMediaPredictions = {};
 
-// Get today's date string in YYYY-MM-DD format
+// Get today's date string in YYYY-MM-DD format using local timezone
 const getTodayDateString = () => {
   const today = new Date();
-  return today.getFullYear() + '-' + 
-         String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-         String(today.getDate()).padStart(2, '0');
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
-// Get tomorrow's date string in YYYY-MM-DD format
+// Get tomorrow's date string in YYYY-MM-DD format using local timezone
 const getTomorrowDateString = () => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.getFullYear() + '-' + 
-         String(tomorrow.getMonth() + 1).padStart(2, '0') + '-' + 
-         String(tomorrow.getDate()).padStart(2, '0');
+  const year = tomorrow.getFullYear();
+  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const day = String(tomorrow.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
-// Check if it's past midnight (new day)
+// Convert any date to local date string format
+const getLocalDateString = (dateInput) => {
+  const date = new Date(dateInput);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Check if it's past midnight (new day) in local timezone
 const isNewDay = (lastSubmissionDate) => {
   const today = getTodayDateString();
   return lastSubmissionDate !== today;
 };
 
+// Get current local timestamp
+const getCurrentLocalTimestamp = () => {
+  return new Date().toISOString();
+};
+
 const SocialMediaPredictor = () => {
-  const [userId, setUserId] = useState('user_123');
+  
+  const authenticatedUserId = localStorage.getItem("user_id");
+  const [userId, setUserId] = useState(authenticatedUserId || 'default_user');
+ 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     age: '',
@@ -70,21 +89,22 @@ const SocialMediaPredictor = () => {
   const [animationKey, setAnimationKey] = useState(0);
 
   useEffect(() => {
-    const storedUserId = localStorage.getItem('user_id') || 'user_123';
+   
+    const storedUserId = authenticatedUserId || 'default_user';
     setUserId(storedUserId);
     checkPredictionLock(storedUserId);
     
-    // Check every minute if it's a new day
+    
     const interval = setInterval(() => {
       checkPredictionLock(storedUserId);
-    }, 60000); // Check every minute
+    }, 60000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [authenticatedUserId]); 
 
-          useEffect(() => {
-          document.title = 'Mentora | Academic Performance';
-        }, []);
+  useEffect(() => {
+    document.title = 'Mentora | Academic Performance';
+  }, []);
 
   useEffect(() => {
     setAnimationKey(prev => prev + 1);
@@ -95,11 +115,10 @@ const SocialMediaPredictor = () => {
       const todayStr = getTodayDateString();
       const tomorrowStr = getTomorrowDateString();
       
-      // Check local storage first
-      const localPrediction = localStorage.getItem(`${SOCIAL_MEDIA_STORAGE_KEY}_${userId}`);
+      // Check in-memory storage first
+      const localPrediction = socialMediaPredictions[userId];
       if (localPrediction) {
-        const parsed = JSON.parse(localPrediction);
-        const lastSubmissionDate = parsed.submissionDate;
+        const lastSubmissionDate = localPrediction.localSubmissionDate;
         
         // If it's a new day, allow new prediction
         if (isNewDay(lastSubmissionDate)) {
@@ -112,7 +131,7 @@ const SocialMediaPredictor = () => {
         // If submitted today, show locked state
         if (lastSubmissionDate === todayStr) {
           setHasSubmittedToday(true);
-          setTodaysPrediction(parsed);
+          setTodaysPrediction(localPrediction);
           setNextAvailableDate(tomorrowStr);
           return;
         }
@@ -123,24 +142,26 @@ const SocialMediaPredictor = () => {
         const response = await fetch(`http://localhost:5004/get_today_prediction?user_id=${userId}`);
         if (response.ok) {
           const data = await response.json();
-          const serverDate = new Date(data.timestamp).toISOString().split('T')[0];
           
-          // Check if server data is from today
-          if (serverDate === todayStr) {
-            setTodaysPrediction(data);
+          // Convert server timestamp to local date
+          const serverLocalDate = getLocalDateString(data.timestamp);
+          
+          // Check if server data is from today (local time)
+          if (serverLocalDate === todayStr) {
+            const predictionWithLocalDate = {
+              ...data,
+              localSubmissionDate: todayStr,
+              localTimestamp: data.timestamp
+            };
+            
+            setTodaysPrediction(predictionWithLocalDate);
             setHasSubmittedToday(true);
             setNextAvailableDate(tomorrowStr);
             
-            // Update localStorage with proper date
-            localStorage.setItem(
-              `${SOCIAL_MEDIA_STORAGE_KEY}_${userId}`, 
-              JSON.stringify({
-                ...data,
-                submissionDate: todayStr
-              })
-            );
+            // Update in-memory storage with local date
+            socialMediaPredictions[userId] = predictionWithLocalDate;
           } else {
-            // Server data is old, allow new prediction
+            // Server data is from a different day, allow new prediction
             setHasSubmittedToday(false);
             setTodaysPrediction(null);
             setNextAvailableDate('');
@@ -231,6 +252,11 @@ const SocialMediaPredictor = () => {
 
     try {
       setIsLoading(true);
+      
+      // Get current local timestamp
+      const currentLocalTimestamp = getCurrentLocalTimestamp();
+      const todayStr = getTodayDateString();
+      
       const payload = {
         user_id: userId,
         ...formData,
@@ -238,7 +264,9 @@ const SocialMediaPredictor = () => {
         avg_daily_usage_hours: Number(formData.avg_daily_usage_hours),
         sleep_hours_per_night: Number(formData.sleep_hours_per_night),
         mental_health_score: Number(formData.mental_health_score),
-        conflicts_over_social_media: Number(formData.conflicts_over_social_media)
+        conflicts_over_social_media: Number(formData.conflicts_over_social_media),
+        local_timestamp: currentLocalTimestamp,
+        local_date: todayStr // Add local date for server reference
       };
 
       const response = await fetch('http://localhost:5004/predictacademicperformance', {
@@ -249,22 +277,19 @@ const SocialMediaPredictor = () => {
 
       const data = await response.json();
       if (response.ok) {
-        const todayStr = getTodayDateString();
-        const resultWithDate = {
+        const resultWithLocalDate = {
           ...data,
-          timestamp: new Date().toISOString(),
-          submissionDate: todayStr
+          timestamp: currentLocalTimestamp,
+          localTimestamp: currentLocalTimestamp,
+          localSubmissionDate: todayStr
         };
         
-        setPredictionResult(resultWithDate);
+        setPredictionResult(resultWithLocalDate);
         setHasSubmittedToday(true);
-        setTodaysPrediction(resultWithDate);
+        setTodaysPrediction(resultWithLocalDate);
         
-        // Store in localStorage with submission date
-        localStorage.setItem(
-          `${SOCIAL_MEDIA_STORAGE_KEY}_${userId}`, 
-          JSON.stringify(resultWithDate)
-        );
+        // Store in memory with local submission date
+        socialMediaPredictions[userId] = resultWithLocalDate;
         
         setNextAvailableDate(getTomorrowDateString());
       } else {
@@ -307,7 +332,7 @@ const SocialMediaPredictor = () => {
 
   const formatNextAvailableTime = () => {
     if (!nextAvailableDate) return '';
-    const tomorrow = new Date(nextAvailableDate);
+    const tomorrow = new Date(nextAvailableDate + 'T00:00:00');
     return tomorrow.toLocaleDateString('en-US', { 
       weekday: 'long', 
       year: 'numeric', 

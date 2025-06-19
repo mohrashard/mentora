@@ -4,11 +4,12 @@ from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import joblib
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+from bson import ObjectId
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -279,22 +280,28 @@ def home():
 
 @app.route('/get_today_prediction', methods=['GET'])
 def get_today_prediction():
-    """Get today's prediction for a user"""
     try:
         user_id = request.args.get('user_id')
         if not user_id:
             return jsonify({'message': 'User ID is required'}), 400
         
-        # Get today's date
-        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        tomorrow = datetime.utcnow().replace(hour=23, minute=59, second=59, microsecond=999999)
+        # Define today and tomorrow in UTC
+        now_utc = datetime.utcnow()
+        today_utc = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow_utc = today_utc + timedelta(days=1)
         
-        # Find today's prediction for this user
+        # Prepare user_id for query
+        if ObjectId.is_valid(user_id):
+            query_user_id = ObjectId(user_id)
+        else:
+            query_user_id = user_id
+        
+        # Find today's prediction
         prediction = students_collection.find_one({
-            'user_id': user_id,
+            'user_id': query_user_id,
             'timestamp': {
-                '$gte': today,
-                '$lte': tomorrow
+                '$gte': today_utc,
+                '$lt': tomorrow_utc
             }
         })
         
@@ -303,7 +310,7 @@ def get_today_prediction():
                 'results': prediction['predictions'],
                 'personalized_tips': prediction['personalized_tips'],
                 'timestamp': prediction['timestamp'].isoformat(),
-                'local_timestamp': prediction.get('local_timestamp', '')  # Return stored local timestamp
+                'local_timestamp': prediction.get('local_timestamp', '')
             }), 200
         else:
             return jsonify({'message': 'No prediction found for today'}), 404
@@ -364,7 +371,7 @@ def predict_academic_performance():
         
         # Prepare document for MongoDB
         prediction_document = {
-            'user_id': user_id,
+            'user_id': ObjectId(user_id) if ObjectId.is_valid(user_id) else user_id,
             'input_data': {
                 'age': float(age),
                 'gender': gender,
@@ -428,8 +435,6 @@ def predict_academic_performance():
         logger.error(f"Prediction error: {str(e)}")
         return jsonify({'message': 'Internal server error during prediction'}), 500
 
-
-
 @app.route('/academichistory', methods=['GET'])
 def get_academic_history():
     """Get prediction history for a user with optional filters"""
@@ -492,7 +497,8 @@ def get_academic_history():
                 'addiction_score': doc['predictions']['addiction_score'],
                 'avg_daily_usage': doc['input_data']['avg_daily_usage_hours'],
                 'sleep_hours': doc['input_data']['sleep_hours_per_night'],
-                'mental_health_score': doc['input_data']['mental_health_score']
+                'mental_health_score': doc['input_data']['mental_health_score'],
+                'work_study_hours': doc['input_data'].get('work_study_hours', 0)
             })
         
         return jsonify({
@@ -504,7 +510,6 @@ def get_academic_history():
     except Exception as e:
         logger.error(f"Error fetching academic history: {str(e)}")
         return jsonify({'message': 'Error fetching history data'}), 500
-
 
 @app.route('/health', methods=['GET'])
 def health_check():

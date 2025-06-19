@@ -16,47 +16,54 @@ import { useNavigate } from "react-router-dom";
 
 const MOBILE_STORAGE_KEY = "mobile_usage_last_prediction";
 
-// Helper function to get local date string (YYYY-MM-DD)
-const getLocalDateString = (date = new Date()) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+// Helper function to get UTC date string (YYYY-MM-DD)
+const getUTCDateString = (date = new Date()) => {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
-// Get today's date in local timezone
-const getTodayDateString = () => {
-  return getLocalDateString();
+// Get today's date in UTC timezone
+const getTodayUTCDateString = () => {
+  return getUTCDateString();
 };
 
-// Get tomorrow's date in local timezone
-const getTomorrowDateString = () => {
+// Get tomorrow's date in UTC timezone
+const getTomorrowUTCDateString = () => {
   const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return getLocalDateString(tomorrow);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  return getUTCDateString(tomorrow);
 };
 
-// Get local timestamp for saving
-const getLocalTimestamp = () => {
+// Get UTC timestamp for saving
+const getUTCTimestamp = () => {
   const now = new Date();
   return {
-    timestamp: now.getTime(), // Unix timestamp
-    dateString: getLocalDateString(now),
-    displayTime: now.toLocaleString() // For display purposes
+    timestamp: now.getTime(), // Unix timestamp (already UTC-based)
+    utcDateString: getUTCDateString(now),
+    utcISOString: now.toISOString(),
+    localDisplayTime: now.toLocaleString() // For display purposes only
   };
 };
 
-// Check if a timestamp is from today
-const isFromToday = (timestamp) => {
-  if (!timestamp) return false;
+// Check if a timestamp is from today (UTC)
+const isFromTodayUTC = (timestampOrISOString) => {
+  if (!timestampOrISOString) return false;
   
-  const savedDate = new Date(timestamp);
-  const today = new Date();
+  let savedDate;
+  if (typeof timestampOrISOString === 'number') {
+    savedDate = new Date(timestampOrISOString);
+  } else {
+    savedDate = new Date(timestampOrISOString);
+  }
+  
+  const todayUTC = new Date();
   
   return (
-    savedDate.getFullYear() === today.getFullYear() &&
-    savedDate.getMonth() === today.getMonth() &&
-    savedDate.getDate() === today.getDate()
+    savedDate.getUTCFullYear() === todayUTC.getUTCFullYear() &&
+    savedDate.getUTCMonth() === todayUTC.getUTCMonth() &&
+    savedDate.getUTCDate() === todayUTC.getUTCDate()
   );
 };
 
@@ -216,9 +223,9 @@ const MobileUsageAnalyzer = () => {
     },
   ];
 
-          useEffect(() => {
-          document.title = 'Mentora | Mobile Addiction';
-        }, []);
+  useEffect(() => {
+    document.title = 'Mentora | Mobile Addiction';
+  }, []);
 
   useEffect(() => {
     const storedUserId =
@@ -257,8 +264,10 @@ const MobileUsageAnalyzer = () => {
 
     const checkPredictionLock = async (userId) => {
       try {
-        const todayStr = getTodayDateString();
-        const tomorrowStr = getTomorrowDateString();
+        const todayUTCStr = getTodayUTCDateString();
+        const tomorrowUTCStr = getTomorrowUTCDateString();
+
+        console.log("Checking prediction lock for UTC date:", todayUTCStr);
 
         // Check local storage first
         const localPrediction = localStorage.getItem(
@@ -269,14 +278,16 @@ const MobileUsageAnalyzer = () => {
           try {
             const parsed = JSON.parse(localPrediction);
             
-            // Check if the saved prediction is from today using proper date comparison
-            if (parsed.timestamp && isFromToday(parsed.timestamp)) {
-              console.log("Found today's prediction in local storage");
+            // Check if the saved prediction is from today using UTC comparison
+            const savedTimestamp = parsed.timestamp || parsed.utcISOString;
+            if (savedTimestamp && isFromTodayUTC(savedTimestamp)) {
+              console.log("Found today's prediction in local storage (UTC)");
               setHasSubmittedToday(true);
               setTodaysPrediction(parsed);
-              setNextAvailableDate(tomorrowStr);
+              setNextAvailableDate(tomorrowUTCStr);
               return;
             } else {
+              console.log("Local prediction is from a different UTC date, removing...");
               // Remove old prediction from localStorage
               localStorage.removeItem(`${MOBILE_STORAGE_KEY}_${userId}`);
             }
@@ -286,9 +297,9 @@ const MobileUsageAnalyzer = () => {
           }
         }
 
-        // Check backend for today's prediction
+        // Check backend for today's prediction (backend uses UTC)
         const response = await fetch(
-          `http://localhost:5003/get_today_prediction?user_id=${userId}&date=${todayStr}`,
+          `http://localhost:5003/get_today_prediction?user_id=${userId}`,
           {
             method: "GET",
           }
@@ -296,24 +307,27 @@ const MobileUsageAnalyzer = () => {
 
         if (response.ok) {
           const data = await response.json();
-          console.log("Found today's prediction in backend");
+          console.log("Found today's prediction in backend (UTC)");
           setTodaysPrediction(data);
           setHasSubmittedToday(true);
-          setNextAvailableDate(tomorrowStr);
+          setNextAvailableDate(tomorrowUTCStr);
 
-          // Cache in localStorage with current timestamp
-          const localTime = getLocalTimestamp();
+          // Cache in localStorage with UTC timestamp
+          const utcTime = getUTCTimestamp();
           localStorage.setItem(
             `${MOBILE_STORAGE_KEY}_${userId}`,
             JSON.stringify({
               ...data,
-              timestamp: localTime.timestamp,
-              dateString: localTime.dateString,
-              displayTime: localTime.displayTime
+              timestamp: utcTime.timestamp,
+              utcDateString: utcTime.utcDateString,
+              utcISOString: utcTime.utcISOString,
+              localDisplayTime: utcTime.localDisplayTime
             })
           );
         } else if (response.status !== 404) {
           console.error("Error checking prediction lock:", response.status);
+        } else {
+          console.log("No prediction found for today (UTC)");
         }
       } catch (error) {
         console.error("Error checking prediction status:", error);
@@ -431,17 +445,19 @@ const MobileUsageAnalyzer = () => {
         }
       });
 
-      // Get local timestamp for submission
-      const localTime = getLocalTimestamp();
+      // Get UTC timestamp for submission
+      const utcTime = getUTCTimestamp();
 
       const submissionData = {
         user_id: userId,
         ...convertedData,
-        // Include local timestamp information
-        submission_timestamp: localTime.timestamp,
-        submission_date: localTime.dateString,
-        local_time: localTime.displayTime
+        // Include UTC timestamp information (backend expects UTC)
+        submission_timestamp: utcTime.timestamp,
+        submission_utc_date: utcTime.utcDateString,
+        submission_utc_iso: utcTime.utcISOString
       };
+
+      console.log("Submitting data with UTC timestamp:", utcTime);
 
       const response = await fetch(
         "http://localhost:5003/analyze_mobile_usage",
@@ -461,18 +477,20 @@ const MobileUsageAnalyzer = () => {
         setHasSubmittedToday(true);
         setTodaysPrediction(data);
 
-        // Save today's prediction with local timestamp
+        // Save today's prediction with UTC timestamp
         localStorage.setItem(
           `${MOBILE_STORAGE_KEY}_${userId}`,
           JSON.stringify({
             ...data,
-            timestamp: localTime.timestamp,
-            dateString: localTime.dateString,
-            displayTime: localTime.displayTime
+            timestamp: utcTime.timestamp,
+            utcDateString: utcTime.utcDateString,
+            utcISOString: utcTime.utcISOString,
+            localDisplayTime: utcTime.localDisplayTime
           })
         );
 
-        setNextAvailableDate(getTomorrowDateString());
+        setNextAvailableDate(getTomorrowUTCDateString());
+        console.log("Prediction saved with UTC timestamp");
       } else {
         setError(data.error || "Analysis failed. Please try again.");
       }
@@ -686,7 +704,10 @@ const MobileUsageAnalyzer = () => {
               <div className="info-item">
                 <span className="info-label">Analysis Time</span>
                 <span className="info-value">
-                  {result.displayTime || new Date(result.analysis_info?.timestamp || result.timestamp).toLocaleString()}
+                  {result.localDisplayTime || 
+                   (result.analysis_info?.timestamp ? 
+                    new Date(result.analysis_info.timestamp).toLocaleString() : 
+                    'N/A')}
                 </span>
               </div>
             </div>
@@ -696,7 +717,7 @@ const MobileUsageAnalyzer = () => {
         <div className="next-analysis-note">
           <div className="lock-icon">🔒</div>
           <p>
-            You can submit a new analysis after midnight (12:00 AM).
+            You can submit a new analysis tomorrow.
             <br />
             Next available date: <strong>{nextAvailableDate}</strong>
           </p>
@@ -726,7 +747,7 @@ const MobileUsageAnalyzer = () => {
               <div className="lock-message">
                 You've already taken today's assessment.
                 <br />
-                You can take the next one after midnight (12:00 AM).
+                You can take the next tomorrow.
               </div>
             </div>
 
@@ -749,7 +770,7 @@ const MobileUsageAnalyzer = () => {
               Get personalized insights about your mobile usage patterns and
               discover ways to improve your digital wellness.
             </p>
-            </div>
+          </div>
 
           {error && (
             <div className="error-alert">
