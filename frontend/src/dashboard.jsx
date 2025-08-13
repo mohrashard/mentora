@@ -15,7 +15,6 @@ import {
   Filler,
 } from "chart.js";
 import { Line, Bar, Doughnut, Radar } from "react-chartjs-2";
-import { useReactToPrint } from "react-to-print";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import Sidebar from "./components/Sidebar";

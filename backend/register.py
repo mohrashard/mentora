@@ -9,6 +9,12 @@ import re
 from datetime import datetime, timedelta
 import logging
 from bson import ObjectId
+from flask_mail import Mail, Message  
+from report_generator import generate_html_report
+from io import BytesIO
+import requests
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
 
 
 load_dotenv()
@@ -19,11 +25,274 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])  
-
+app.config['MAIL_SERVER'] = 'smtp.gmail.com' 
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = 'noreply@mentora.com'
+mail = Mail(app)
 
 client = None
 db = None
 users_collection = None
+
+
+scheduler = BackgroundScheduler(daemon=True)
+
+def weekly_report_job():
+    """Generate and send weekly reports to all users"""
+    logger.info("Starting weekly report job")
+    try:
+        with app.app_context():
+            users = users_collection.find({})
+            report_count = 0
+            
+            for user in users:
+                try:
+                    logger.info(f"Generating report for user: {user['email']}")
+                    
+                    # Fetch user metrics from various services
+                    metrics = fetch_user_metrics(str(user['_id']))
+                    
+                    # Generate HTML report (changed from PDF)
+                    html_report = generate_html_report(user, metrics)
+                    
+                    # Prepare email content (updated for HTML)
+                    body = f"""
+Hi {user['full_name']},
+
+Your weekly wellness report is below. 
+You're on a {user.get('current_streak', 0)}-day streak - keep it up!
+
+Best regards,
+The Mentora Team
+                    """
+                    
+                    # Send email with HTML content (no attachment)
+                    if send_email(
+                        to=user['email'],
+                        subject="Your Weekly Wellness Report",
+                        body=body,
+                        html=html_report  # New param for HTML
+                    ):
+                        report_count += 1
+                        logger.info(f"Weekly report sent successfully to {user['email']}")
+                    else:
+                        logger.error(f"Failed to send weekly report to {user['email']}")
+                        
+                except Exception as e:
+                    logger.error(f"Weekly report failed for {user.get('email', 'unknown')}: {str(e)}")
+                    continue
+            
+            logger.info(f"Weekly report job completed. Sent {report_count} reports.")
+            
+    except Exception as e:
+        logger.error(f"Weekly report job failed: {str(e)}")
+
+
+def daily_reminder_job():
+    """Send daily reminders to all users"""
+    logger.info("Starting daily reminder job")
+    try:
+        with app.app_context():
+            # Get ALL users
+            users = users_collection.find({})
+            
+            reminder_count = 0
+            
+            for user in users:
+                try:
+                    logger.info(f"Sending reminder to user: {user['email']}")
+                    
+                    # Prepare personalized reminder content
+                    current_streak = user.get('current_streak', 0)
+                    streak_message = f"You're on a {current_streak}-day streak." if current_streak > 0 else "Start your wellness streak today!"
+                    
+                    body = f"""
+Hi {user['full_name']},
+
+Don't forget to log your wellness activities today! 
+{streak_message}
+
+Keep up the great work and maintain your wellness journey.
+
+Best regards,
+The Mentora Team
+                    """
+                    
+                    # Send reminder email
+                    if send_email(
+                        to=user['email'],
+                        subject="Continue Your Wellness Journey - Daily Reminder",
+                        body=body
+                    ):
+                        reminder_count += 1
+                        logger.info(f"Daily reminder sent successfully to {user['email']}")
+                    else:
+                        logger.error(f"Failed to send daily reminder to {user['email']}")
+                        
+                except Exception as e:
+                    logger.error(f"Daily reminder failed for {user.get('email', 'unknown')}: {str(e)}")
+                    continue
+            
+            logger.info(f"Daily reminder job completed. Sent {reminder_count} reminders.")
+            
+    except Exception as e:
+        logger.error(f"Daily reminder job failed: {str(e)}")
+
+def initialize_scheduler():
+    """Initialize and start the scheduler with proper error handling"""
+    try:
+        if not scheduler.running:
+            # Add weekly report job - every Monday at 9 AM
+            scheduler.add_job(
+                func=weekly_report_job,
+                trigger='cron',
+                day_of_week='mon',
+                hour=9,
+                minute=0,
+                id='weekly_report_job',
+                replace_existing=True
+            )
+            
+            # Add daily reminder job - every day at 5 PM
+            scheduler.add_job(
+                func=daily_reminder_job,
+                trigger='cron',
+                hour=17,
+                minute=0,
+                id='daily_reminder_job',
+                replace_existing=True
+            )
+            
+            scheduler.start()
+            logger.info("Scheduler started successfully")
+            
+            # Register shutdown handler
+            atexit.register(lambda: scheduler.shutdown())
+            
+        return True
+    except Exception as e:
+        logger.error(f"Failed to initialize scheduler: {str(e)}")
+        return False
+    
+def send_email(to, subject, body, html=None, attachment=None, filename=None):
+    """Send email with optional HTML body and PDF attachment"""
+    try:
+        # Validate email configuration
+        if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+            logger.error("Email configuration missing - MAIL_USERNAME or MAIL_PASSWORD not set")
+            return False
+            
+        msg = Message(subject, recipients=[to])
+        msg.body = body  # Plain text fallback
+        
+        if html:
+            msg.html = html  # HTML version
+            logger.info("HTML email content added")
+        
+        # Add attachment if provided (kept for compatibility, but not used for reports)
+        if attachment and filename:
+            msg.attach(filename, "application/pdf", attachment)
+            logger.info(f"Email attachment added: {filename}")
+        
+        mail.send(msg)
+        logger.info(f"Email sent successfully to {to}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Email sending failed to {to}: {str(e)}")
+        return False
+
+def fetch_user_metrics(user_id):
+    """Fetch metrics from existing endpoints with better error handling"""
+    metrics = {
+        'stress': [],
+        'mental': [],
+        'mobile': [],
+        'academic': [],
+        'summary': {
+            'averageStress': 0,
+            'averageMentalHealth': 0,
+            'screenTimeAverage': 0,
+            'academicImpact': 'none'
+        }
+    }
+    
+    services = {
+        'stress': ('5001', 'stresshistory'),
+        'mental': ('5002', 'mentalhistory'),
+        'mobile': ('5003', 'get_user_history'),
+        'academic': ('5004', 'academichistory')
+    }
+    
+    for metric, (port, endpoint) in services.items():
+        try:
+            url = f'http://localhost:{port}/{endpoint}?user_id={user_id}'
+            logger.info(f"Fetching {metric} data from {url}")
+            
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                logger.debug(f"Raw {metric} data: {data}")
+                
+                # Extract history data based on service response structure
+                if metric == 'stress':
+                    history = data.get('predictions', [])
+                elif metric in ['mental', 'academic']:
+                    history = data.get('history', [])
+                elif metric == 'mobile':
+                    history = data  # Direct list
+                else:
+                    history = []
+                
+                metrics[metric] = history
+                logger.info(f"Successfully fetched {metric} data for user {user_id}")
+            else:
+                logger.warning(f"Failed to fetch {metric} data: HTTP {response.status_code}")
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error fetching {metric} data: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error fetching {metric} data: {str(e)}")
+    
+    # Calculate summary statistics
+    try:
+        # Stress: Extract 'stress_level' from each prediction
+        if metrics['stress']:
+            stress_values = [float(entry.get('stress_level', 0)) for entry in metrics['stress']]
+            metrics['summary']['averageStress'] = sum(stress_values) / len(stress_values) if stress_values else 0
+        
+        # Mental: Extract 'Mood_Rating_1_to_10' from input_data
+        if metrics['mental']:
+            mental_values = []
+            for entry in metrics['mental']:
+                input_data = entry.get('input_data', {})
+                mood_rating = input_data.get('Mood_Rating_1_to_10', 0)
+                mental_values.append(float(mood_rating))
+            metrics['summary']['averageMentalHealth'] = sum(mental_values) / len(mental_values) if mental_values else 0
+        
+        # Mobile: Extract 'daily_screen_time' from input_data
+        if metrics['mobile']:
+            screen_values = []
+            for entry in metrics['mobile']:
+                input_data = entry.get('input_data', {})
+                screen_time = input_data.get('daily_screen_time', 0)
+                screen_values.append(float(screen_time))
+            metrics['summary']['screenTimeAverage'] = sum(screen_values) / len(screen_values) if screen_values else 0
+        
+        # Academic: Determine most common 'academic_impact'
+        if metrics['academic']:
+            academic_entries = metrics['academic']
+            if academic_entries:
+                impacts = [entry.get('academic_impact', 'none') for entry in academic_entries]
+                metrics['summary']['academicImpact'] = max(set(impacts), key=impacts.count) if impacts else 'none'
+                
+    except Exception as e:
+        logger.error(f"Error calculating summary metrics: {str(e)}")
+    
+    return metrics
 
 def initialize_database():
     """Initialize database connection with error handling"""
@@ -496,6 +765,16 @@ def internal_error(error):
     logger.error(f"Internal server error: {str(error)}")
     return jsonify({'message': 'Internal server error'}), 500
 
+@app.route('/test/weekly-report')
+def test_weekly_report():
+    weekly_report_job()
+    return "✅ Weekly report job triggered manually"
+
+@app.route('/test/daily-reminder')
+def test_daily_reminder():
+    daily_reminder_job()
+    return "✅ Daily reminder job triggered manually"
+
 if __name__ == '__main__':
     print("="*50)
     print("Starting Mentora Flask Server...")
@@ -504,6 +783,13 @@ if __name__ == '__main__':
 
     if initialize_database():
         print(f"✓ Database connection established")
+        
+        # Initialize scheduler
+        if initialize_scheduler():
+            print(f"✓ Scheduler initialized - Jobs scheduled")
+        else:
+            print(f"⚠ Scheduler failed to initialize - Email jobs may not work")
+            
         print(f"✓ Server will run on: http://localhost:5000")
         print(f"✓ Server will run on: http://127.0.0.1:5000")
         print("="*50)
@@ -519,3 +805,4 @@ if __name__ == '__main__':
     else:
         print("✗ Failed to connect to database. Please check MongoDB connection.")
         print("✗ Make sure MongoDB is running on mongodb://localhost:27017")
+

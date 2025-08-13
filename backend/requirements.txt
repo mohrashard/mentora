@@ -1,0 +1,5 @@
+Flask-Mail
+APScheduler
+reportlab
+pymongo
+requests
