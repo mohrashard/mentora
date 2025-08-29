@@ -525,6 +525,7 @@ body {
   background: var(--gradient-primary);
   color: white;
   box-shadow: 0 8px 25px var(--purple-glow);
+  margin-left: 200px;
 }
 
 .cta-primary::before {

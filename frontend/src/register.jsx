@@ -179,25 +179,36 @@ const RegistrationForm = () => {
           </div>
 
           <div className="form-field">
-            <label htmlFor="gender">Gender</label>
-            <select
-              id="gender"
-              name="gender"
-              value={formData.gender}
-              onChange={handleChange}
-              className={errors.gender ? 'error' : ''}
-              required
-            >
-              <option value="">Select Gender</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Other">Other</option>
-              <option value="Prefer not to say">Prefer not to say</option>
-            </select>
-            {errors.gender && (
-              <span className="error-message">{errors.gender}</span>
-            )}
-          </div>
+  <label htmlFor="gender">Gender</label>
+  <select
+    id="gender"
+    name="gender"
+    value={formData.gender}
+    onChange={handleChange}
+    className={errors.gender ? 'error' : ''}
+    required
+
+  >
+    <option style={{ backgroundColor: '#1e293b', color: '#ffffff' }} value="">
+      Select Gender
+    </option>
+    <option style={{ backgroundColor: '#1e293b', color: '#ffffff' }} value="Male">
+      Male
+    </option>
+    <option style={{ backgroundColor: '#1e293b', color: '#ffffff' }} value="Female">
+      Female
+    </option>
+    <option style={{ backgroundColor: '#1e293b', color: '#ffffff' }} value="Other">
+      Other
+    </option>
+    <option style={{ backgroundColor: '#1e293b', color: '#ffffff' }} value="Prefer not to say">
+      Prefer not to say
+    </option>
+  </select>
+  {errors.gender && (
+    <span className="error-message">{errors.gender}</span>
+  )}
+</div>
 
           <div className="form-field">
             <label htmlFor="occupation_or_academic_level">Occupation/Academic Level</label>

@@ -15,8 +15,8 @@ import {
   Filler,
 } from "chart.js";
 import { Line, Bar, Doughnut, Radar } from "react-chartjs-2";
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import Sidebar from "./components/Sidebar";
 import "./Dashboard.css";
 
@@ -651,16 +651,20 @@ const Dashboard = () => {
     const canvas = await html2canvas(input, {
       scale: 2,
       useCORS: true,
-      logging: false
+      logging: false,
     });
-    
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
+
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
     const imgWidth = 210;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-    pdf.save(`Mentora-Report-${user?.full_name}-${new Date().toISOString().split('T')[0]}.pdf`);
+
+    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+    pdf.save(
+      `Mentora-Report-${user?.full_name}-${
+        new Date().toISOString().split("T")[0]
+      }.pdf`
+    );
   };
 
   const mentalHealthStatusScores = {
@@ -1027,9 +1031,24 @@ const Dashboard = () => {
                 onChange={(e) => setDateRange(e.target.value)}
                 className="date-range-selector"
               >
-                <option value="24hours">Last 24 Hours</option>
-                <option value="7days">Last 7 Days</option>
-                <option value="30days">Last 30 Days</option>
+                <option
+                  style={{ backgroundColor: "#1e293b", color: "#ffffff" }}
+                  value="24hours"
+                >
+                  Last 24 Hours
+                </option>
+                <option
+                  style={{ backgroundColor: "#1e293b", color: "#ffffff" }}
+                  value="7days"
+                >
+                  Last 7 Days
+                </option>
+                <option
+                  style={{ backgroundColor: "#1e293b", color: "#ffffff" }}
+                  value="30days"
+                >
+                  Last 30 Days
+                </option>
               </select>
               <button
                 onClick={refreshData}
@@ -1943,10 +1962,10 @@ const Dashboard = () => {
             </div>
           </div>
 
-           <div
+          <div
             className="report-section"
             ref={componentRef}
-            style={{ position: 'absolute', left: '-9999px' }}
+            style={{ position: "absolute", left: "-9999px" }}
           >
             {/* Enhanced Report Content */}
             <div className="report-header">
@@ -1955,16 +1974,24 @@ const Dashboard = () => {
                 <div className="report-title">Wellness Dashboard Report</div>
               </div>
               <div className="report-info">
-                <p><strong>Generated For:</strong> {user?.full_name}</p>
-                <p><strong>Date Range:</strong> {
-                  dateRange === "24hours" ? "Last 24 Hours" :
-                  dateRange === "7days" ? "Last 7 Days" : 
-                  "Last 30 Days"
-                }</p>
-                <p><strong>Generated On:</strong> {new Date().toLocaleDateString()}</p>
+                <p>
+                  <strong>Generated For:</strong> {user?.full_name}
+                </p>
+                <p>
+                  <strong>Date Range:</strong>{" "}
+                  {dateRange === "24hours"
+                    ? "Last 24 Hours"
+                    : dateRange === "7days"
+                    ? "Last 7 Days"
+                    : "Last 30 Days"}
+                </p>
+                <p>
+                  <strong>Generated On:</strong>{" "}
+                  {new Date().toLocaleDateString()}
+                </p>
               </div>
             </div>
-            
+
             <div className="report-summary">
               <h2>Wellness Summary</h2>
               <div className="summary-grid">
@@ -1973,19 +2000,24 @@ const Dashboard = () => {
                   <div className="score-value">
                     {Math.round(
                       (metrics.goals.stressReduction.progress +
-                       metrics.goals.mentalWellness.progress +
-                       metrics.goals.screenTime.progress) / 3
-                    )}%
+                        metrics.goals.mentalWellness.progress +
+                        metrics.goals.screenTime.progress) /
+                        3
+                    )}
+                    %
                   </div>
                 </div>
-                
+
                 <div className="summary-card">
                   <h3>Current Status</h3>
                   <div className="status-grid">
                     <div className="status-item">
                       <span>Stress Level</span>
                       <span className="status-value">
-                        {metrics.stress[metrics.stress.length - 1]?.stress_level?.toFixed(1) || 'N/A'}/10
+                        {metrics.stress[
+                          metrics.stress.length - 1
+                        ]?.stress_level?.toFixed(1) || "N/A"}
+                        /10
                       </span>
                     </div>
                     <div className="status-item">
@@ -2002,7 +2034,7 @@ const Dashboard = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="summary-card">
                   <h3>Usage Patterns</h3>
                   <div className="usage-grid">
@@ -2028,7 +2060,7 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="report-section-content">
               <div className="report-column">
                 <div className="report-metrics">
@@ -2048,11 +2080,19 @@ const Dashboard = () => {
                     </div>
                     <div className="metric-item">
                       <span>Mobile Addiction Risk</span>
-                      <span>{metrics.summary.mobileUsageStatus === "high" ? "High" : "Low"}</span>
+                      <span>
+                        {metrics.summary.mobileUsageStatus === "high"
+                          ? "High"
+                          : "Low"}
+                      </span>
                     </div>
                     <div className="metric-item">
                       <span>Academic Impact</span>
-                      <span>{metrics.summary.academicImpact === "high" ? "High" : "Low"}</span>
+                      <span>
+                        {metrics.summary.academicImpact === "high"
+                          ? "High"
+                          : "Low"}
+                      </span>
                     </div>
                     <div className="metric-item">
                       <span>Active Days</span>
@@ -2060,44 +2100,56 @@ const Dashboard = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="report-goals">
                   <h3>Goals Progress</h3>
                   <div className="goal-progress">
                     <div className="goal-item">
                       <span>Stress Reduction</span>
                       <div className="progress-bar">
-                        <div 
-                          className="progress-fill" 
-                          style={{ width: `${metrics.goals.stressReduction.progress}%` }}
+                        <div
+                          className="progress-fill"
+                          style={{
+                            width: `${metrics.goals.stressReduction.progress}%`,
+                          }}
                         ></div>
                       </div>
-                      <span>{Math.round(metrics.goals.stressReduction.progress)}%</span>
+                      <span>
+                        {Math.round(metrics.goals.stressReduction.progress)}%
+                      </span>
                     </div>
                     <div className="goal-item">
                       <span>Mental Wellness</span>
                       <div className="progress-bar">
-                        <div 
-                          className="progress-fill" 
-                          style={{ width: `${metrics.goals.mentalWellness.progress}%` }}
+                        <div
+                          className="progress-fill"
+                          style={{
+                            width: `${metrics.goals.mentalWellness.progress}%`,
+                          }}
                         ></div>
                       </div>
-                      <span>{Math.round(metrics.goals.mentalWellness.progress)}%</span>
+                      <span>
+                        {Math.round(metrics.goals.mentalWellness.progress)}%
+                      </span>
                     </div>
                     <div className="goal-item">
                       <span>Screen Time</span>
                       <div className="progress-bar">
-                        <div 
-                          className="progress-fill" 
-                          style={{ width: `${metrics.goals.screenTime.progress}%` }}
+                        <div
+                          className="progress-fill"
+                          style={{
+                            width: `${metrics.goals.screenTime.progress}%`,
+                          }}
                         ></div>
                       </div>
-                      <span>{Math.round(metrics.goals.screenTime.progress)}%</span>
+                      <span>
+                        {Math.round(metrics.goals.screenTime.progress)}%
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
-              
+
               <div className="report-column">
                 <div className="report-trends">
                   <h3>Key Trends</h3>
@@ -2112,7 +2164,7 @@ const Dashboard = () => {
                       )}
                     </ul>
                   </div>
-                  
+
                   <div className="trend-category">
                     <h4>Areas Needing Attention</h4>
                     <ul>
@@ -2125,7 +2177,7 @@ const Dashboard = () => {
                     </ul>
                   </div>
                 </div>
-                
+
                 <div className="report-recommendations">
                   <h3>Recommendations</h3>
                   <ul>
@@ -2141,24 +2193,23 @@ const Dashboard = () => {
                     {getUsageStatus(
                       latestMobile?.input_data?.social_media_usage || 0,
                       { low: 1, moderate: 3 }
-                    ) === "High" && (
-                      <li>📱 Reduce social media usage</li>
-                    )}
+                    ) === "High" && <li>📱 Reduce social media usage</li>}
                     {getUsageStatus(
                       latestMobile?.input_data?.night_usage || 0,
                       { low: 1, moderate: 2 }
-                    ) === "High" && (
-                      <li>🌙 Avoid phone use before bed</li>
-                    )}
+                    ) === "High" && <li>🌙 Avoid phone use before bed</li>}
                     <li>🏃‍♀️ Engage in regular physical activity</li>
                     <li>😴 Maintain consistent sleep schedule</li>
                   </ul>
                 </div>
               </div>
             </div>
-            
+
             <div className="report-footer">
-              <p>This report is generated by Mentora AI and should be used as a guide for wellness improvement.</p>
+              <p>
+                This report is generated by Mentora AI and should be used as a
+                guide for wellness improvement.
+              </p>
               <div className="watermark">MENTORA WELLNESS REPORT</div>
             </div>
           </div>

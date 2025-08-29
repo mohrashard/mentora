@@ -70,13 +70,16 @@ const Sidebar = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('userData');
-    navigate('/login');
-    if (window.innerWidth <= 768) {
-      setIsOpen(false);
-    }
-  };
+const handleLogout = () => {
+  // Remove both keys to be safe
+  localStorage.removeItem('user_id');   // <- this is what App.js checks
+  localStorage.removeItem('userData');  // <- optional, if you store extra info
+
+  navigate('/login');
+  if (window.innerWidth <= 768) {
+    setIsOpen(false);
+  }
+};
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen);

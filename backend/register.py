@@ -1,4 +1,3 @@
-## register.py
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
@@ -92,54 +91,110 @@ The Mentora Team
 
 
 def daily_reminder_job():
-    """Send daily reminders to all users"""
+    """Send professional daily reminders to all users"""
     logger.info("Starting daily reminder job")
     try:
         with app.app_context():
-            # Get ALL users
             users = users_collection.find({})
-            
             reminder_count = 0
-            
+
             for user in users:
                 try:
                     logger.info(f"Sending reminder to user: {user['email']}")
-                    
-                    # Prepare personalized reminder content
+
                     current_streak = user.get('current_streak', 0)
-                    streak_message = f"You're on a {current_streak}-day streak." if current_streak > 0 else "Start your wellness streak today!"
-                    
-                    body = f"""
+                    streak_message = (
+                        f"You're on a {current_streak}-day streak. Keep up the great work!"
+                        if current_streak > 0 else
+                        "Start your wellness streak today and track your progress!"
+                    )
+
+                    # Plain text version
+                    plain_body = f"""
 Hi {user['full_name']},
 
-Don't forget to log your wellness activities today! 
 {streak_message}
 
-Keep up the great work and maintain your wellness journey.
+Remember to log your wellness activities today to maintain your streak.
 
 Best regards,
-The Mentora Team
+Mentora Team
                     """
-                    
-                    # Send reminder email
+
+                    # Professional HTML version
+                    html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #1a1a1a;
+            line-height: 1.6;
+        }}
+        .container {{
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 25px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }}
+        .greeting {{
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }}
+        .message {{
+            font-size: 16px;
+            margin-bottom: 20px;
+        }}
+        .streak {{
+            font-weight: bold;
+            color: #2F80ED;
+        }}
+        .closing {{
+            font-size: 14px;
+            color: #555555;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="greeting">Hi {user['full_name']},</div>
+        <div class="message streak">{streak_message}</div>
+        <div class="message">
+            Remember to log your wellness activities today to maintain your progress.
+        </div>
+        <div class="closing">
+            Best regards,<br>
+            Mentora Team
+        </div>
+    </div>
+</body>
+</html>
+                    """
+
                     if send_email(
                         to=user['email'],
-                        subject="Continue Your Wellness Journey - Daily Reminder",
-                        body=body
+                        subject="Your Daily Wellness Reminder",
+                        body=plain_body,
+                        html=html_body
                     ):
                         reminder_count += 1
                         logger.info(f"Daily reminder sent successfully to {user['email']}")
                     else:
                         logger.error(f"Failed to send daily reminder to {user['email']}")
-                        
+
                 except Exception as e:
                     logger.error(f"Daily reminder failed for {user.get('email', 'unknown')}: {str(e)}")
                     continue
-            
+
             logger.info(f"Daily reminder job completed. Sent {reminder_count} reminders.")
-            
+
     except Exception as e:
         logger.error(f"Daily reminder job failed: {str(e)}")
+
 
 def initialize_scheduler():
     """Initialize and start the scheduler with proper error handling"""
@@ -178,32 +233,32 @@ def initialize_scheduler():
         return False
     
 def send_email(to, subject, body, html=None, attachment=None, filename=None):
-    """Send email with optional HTML body and PDF attachment"""
+    """Send email with optional HTML body and PDF attachment (professional version)"""
     try:
-        # Validate email configuration
         if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
             logger.error("Email configuration missing - MAIL_USERNAME or MAIL_PASSWORD not set")
             return False
-            
+
         msg = Message(subject, recipients=[to])
         msg.body = body  # Plain text fallback
-        
+
         if html:
-            msg.html = html  # HTML version
+            msg.html = html
             logger.info("HTML email content added")
-        
-        # Add attachment if provided (kept for compatibility, but not used for reports)
+
         if attachment and filename:
             msg.attach(filename, "application/pdf", attachment)
             logger.info(f"Email attachment added: {filename}")
-        
+
         mail.send(msg)
         logger.info(f"Email sent successfully to {to}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Email sending failed to {to}: {str(e)}")
         return False
+
+
 
 def fetch_user_metrics(user_id):
     """Fetch metrics from existing endpoints with better error handling"""
@@ -805,4 +860,3 @@ if __name__ == '__main__':
     else:
         print("✗ Failed to connect to database. Please check MongoDB connection.")
         print("✗ Make sure MongoDB is running on mongodb://localhost:27017")
-

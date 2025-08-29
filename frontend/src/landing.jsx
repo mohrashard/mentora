@@ -175,29 +175,36 @@ const Landing = () => {
     setOpenFAQ(openFAQ === index ? null : index);
   };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+const handleLogin = async (e) => {
+  e.preventDefault();
 
-    try {
-      const response = await fetch("http://localhost:5000/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(loginData),
-      });
+  try {
+    const response = await fetch("http://localhost:5000/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(loginData),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (response.ok) {
-        console.log("Login successful:", data);
-        navigate("/dashboard");
-      } else {
-        alert(data.message || "Login failed");
-      }
-    } catch (error) {
-      console.error("Login error:", error);
-      alert("An error occurred during login");
+    if (response.ok) {
+      console.log("Login successful:", data);
+
+      // ✅ Store user info in localStorage so PrivateRoute works
+      localStorage.setItem("user_id", data.user_id); // or data.id based on your backend
+      localStorage.setItem("token", data.token || ""); // optional if your backend returns JWT
+
+      // Navigate to dashboard
+      navigate("/dashboard");
+    } else {
+      alert(data.message || "Login failed");
     }
-  };
+  } catch (error) {
+    console.error("Login error:", error);
+    alert("An error occurred during login");
+  }
+};
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -521,9 +528,7 @@ const Landing = () => {
               >
                 Get Started
               </button>
-              <button className="cta-secondary" aria-label="Watch demo video">
-                See Demo
-              </button>
+         
             </div>
           </div>
         </div>

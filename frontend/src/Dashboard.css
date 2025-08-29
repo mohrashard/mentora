@@ -399,19 +399,23 @@ body::after {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 60vh;
+  min-height: 70vh;
   text-align: center;
   padding: var(--spacing-lg);
+  background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
 }
 
 .loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 3px solid rgba(255, 255, 255, 0.1);
-  border-left: 3px solid var(--primary-teal);
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-left: 4px solid var(--primary-teal);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: var(--spacing-lg);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 @keyframes spin {
@@ -420,15 +424,17 @@ body::after {
 }
 
 .loading-content h3 {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   margin-bottom: var(--spacing-sm);
-  color: var(--text-primary);
-  font-weight: 600;
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
 }
 
 .loading-content p {
-  color: var(--text-secondary);
+  color: rgba(255,255,255,0.7);
   margin-bottom: var(--spacing-md);
+  font-size: 1rem;
 }
 
 .loading-steps {
@@ -436,23 +442,49 @@ body::after {
   flex-direction: column;
   gap: var(--spacing-xs);
   margin-top: var(--spacing-sm);
-  max-width: 300px;
+  max-width: 320px;
+  width: 100%;
 }
 
 .step {
   padding: 0.75rem var(--spacing-sm);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255,255,255,0.05);
   border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  transition: var(--transition-smooth);
-  border-left: 3px solid transparent;
+  color: rgba(255,255,255,0.6);
+  transition: all 0.3s ease;
+  border-left: 4px solid transparent;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.step::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: var(--spacing-sm);
+  background: rgba(255,255,255,0.6);
+  border-radius: 50%;
+  transition: all 0.3s ease;
 }
 
 .step.active {
-  background: rgba(20, 184, 166, 0.15);
+  background: rgba(20, 184, 166, 0.2); /* primary-teal */
   color: var(--primary-teal);
   border-left-color: var(--primary-teal);
 }
+
+.step.active::before {
+  background: var(--primary-teal);
+  transform: scale(1.3);
+}
+
+.step:hover {
+  background: rgba(20, 184, 166, 0.15);
+  color: var(--primary-teal);
+}
+
 
 /* Error States - More Helpful */
 .error-container {
