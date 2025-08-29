@@ -10,27 +10,25 @@ import os
 from dotenv import load_dotenv
 import logging
 
-# Load environment variables
+
 load_dotenv()
 
-# Initialize Flask app
-app = Flask(__name__)
-CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])  # Added CORS configuration
 
-# Configure logging
+app = Flask(__name__)
+CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])  
+
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# MongoDB configuration
+
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
 DB_NAME = os.getenv('DB_NAME', 'mentoradb')
 
-# Global variables for model artifacts
+
 model = None
 scaler = None
 metadata = None
-
-# Initialize MongoDB client globally
 client = None
 db = None
 users_collection = None
@@ -49,6 +47,7 @@ def initialize_db():
     except Exception as e:
         logger.error(f"❌ Failed to connect to MongoDB: {e}")
         return False
+    
 
 def load_model_artifacts():
     """Load the trained model and preprocessing artifacts"""
@@ -72,6 +71,8 @@ def load_model_artifacts():
     except Exception as e:
         logger.error(f"❌ Error loading model artifacts: {e}")
         return False
+    
+
 
 def get_user_profile(user_id):
     """Get user profile data from users collection"""
@@ -80,7 +81,7 @@ def get_user_profile(user_id):
             logger.warning("⚠️ Users collection not available")
             return None
             
-        # Validate ObjectId format
+   
         if not ObjectId.is_valid(user_id):
             logger.warning(f"⚠️ Invalid user ID format: {user_id}")
             return None
@@ -98,6 +99,8 @@ def get_user_profile(user_id):
     except Exception as e:
         logger.error(f"❌ Error fetching user profile: {e}")
         return None
+    
+
 
 def estimate_bmi_category(height_cm, weight_kg):
     """Estimate BMI category based on height and weight"""
@@ -115,6 +118,8 @@ def estimate_bmi_category(height_cm, weight_kg):
             return "Obese"
     except:
         return "Normal"
+    
+
 
 def estimate_heart_rate(age, activity_level):
     """Estimate heart rate based on age and activity level"""
@@ -123,15 +128,14 @@ def estimate_heart_rate(age, activity_level):
     activity_factor = (100 - activity_level) * 0.15
     return round(base_rate + age_factor + activity_factor)
 
+
+
 def estimate_bp(age, bmi_category):
     """Estimate blood pressure based on age and BMI"""
     base_systolic = 110
     base_diastolic = 70
     
-    # Age adjustment
     age_adjust = max(0, (age - 30) * 0.5)
-    
-    # BMI adjustment
     bmi_adjust = 0
     if bmi_category == "Overweight":
         bmi_adjust = 5
@@ -143,10 +147,16 @@ def estimate_bp(age, bmi_category):
     
     return round(systolic), round(diastolic)
 
+
+#2.4: Utility function for preprocessing user input into a structured 
+# feature vector for stress prediction, including handling missing values,
+#  encoding categorical data, and calculating derived health metrics
+
+
 def preprocess_input(input_data, user_profile):
     """Preprocess input data for prediction"""
     try:
-        # Get BMI category - either directly or estimate from height/weight
+      
         if 'bmi_category' in input_data:
             bmi_category = input_data['bmi_category']
         elif 'height_cm' in input_data and 'weight_kg' in input_data:
@@ -155,22 +165,16 @@ def preprocess_input(input_data, user_profile):
                 float(input_data['weight_kg'])
             )
         else:
-            bmi_category = "Normal"  # Default
+            bmi_category = "Normal"
         
-        # Apply BMI mapping
+    
         bmi_mapping = metadata.get('bmi_mapping', {'Normal': 0, 'Overweight': 1, 'Obese': 2})
-        bmi_numeric = bmi_mapping.get(bmi_category, 0)
-        
-        # Apply gender mapping
+        bmi_numeric = bmi_mapping.get(bmi_category, 0)  
         gender_mapping = metadata.get('gender_mapping', {'Male': 1, 'Female': 0})
         gender = input_data.get('gender', user_profile.get('gender', 'Unknown'))
-        gender_numeric = gender_mapping.get(gender, 0)
-        
-        # Map occupation stress level
+        gender_numeric = gender_mapping.get(gender, 0)                
         occupation = input_data.get('occupation', user_profile.get('occupation', 'Student'))
-        occupation_stress = 0
-        
-        # Get occupation categories from metadata or use defaults
+        occupation_stress = 0  
         occupation_categories = metadata.get('occupation_categories', {
             'high_stress': ['Doctor', 'Nurse', 'Lawyer', 'Software Engineer'],
             'medium_stress': ['Teacher', 'Accountant', 'Engineer', 'Salesperson', 'Sales Representative']
@@ -181,35 +185,35 @@ def preprocess_input(input_data, user_profile):
         elif occupation in occupation_categories.get('medium_stress', []):
             occupation_stress = 1
         
-        # Extract basic features with defaults
+    
         sleep_duration = float(input_data.get('sleep_duration', 7.0))
         quality_of_sleep = float(input_data.get('quality_of_sleep', 7.0))
         daily_steps = float(input_data.get('daily_steps', 5000))
         physical_activity = float(input_data.get('physical_activity_level', 50))
         
-        # Estimate heart rate if not provided
+      
         heart_rate = float(input_data.get('heart_rate', 
                             estimate_heart_rate(user_profile['age'], physical_activity)))
         
-        # Estimate BP if not provided
+   
         if 'systolic_bp' in input_data and 'diastolic_bp' in input_data:
             systolic_bp = float(input_data['systolic_bp'])
             diastolic_bp = float(input_data['diastolic_bp'])
         else:
             systolic_bp, diastolic_bp = estimate_bp(user_profile['age'], bmi_category)
         
-        # Calculate derived features
+     
         sleep_efficiency = quality_of_sleep / sleep_duration if sleep_duration > 0 else 0
         activity_ratio = physical_activity / (daily_steps/1000) if daily_steps > 0 else 0
         bp_product = (systolic_bp * diastolic_bp) / 1000
         
-        # Handle sleep disorder - convert to binary
+       
         has_sleep_disorder = input_data.get('has_sleep_disorder', False)
         if isinstance(has_sleep_disorder, str):
             has_sleep_disorder = has_sleep_disorder.lower() in ['true', '1', 'yes']
         has_sleep_disorder = int(bool(has_sleep_disorder))
         
-        # Create feature dictionary
+      
         features = {
             'Age': float(user_profile['age']),
             'Sleep Duration': sleep_duration,
@@ -228,7 +232,7 @@ def preprocess_input(input_data, user_profile):
             'BP_Product': bp_product
         }
         
-        # Create feature vector in correct order
+      
         selected_features = metadata.get('selected_features', [
             'Age', 'Sleep Duration', 'Quality of Sleep', 'Physical Activity Level',
             'BMI_Numeric', 'Heart Rate', 'Daily Steps', 'Systolic_BP', 'Diastolic_BP',
@@ -243,6 +247,11 @@ def preprocess_input(input_data, user_profile):
         logger.error(f"Error in preprocessing: {e}")
         raise
 
+
+#2.5: Utility function for saving stress prediction results
+#  and corresponding input data to MongoDB, including 
+# timestamping, stress categorization, and error logging
+
 def save_prediction_to_db(user_id, input_data, prediction, prediction_id=None):
     """Save prediction data to MongoDB"""
     if predictions_collection is None:
@@ -250,7 +259,7 @@ def save_prediction_to_db(user_id, input_data, prediction, prediction_id=None):
         return None
     
     try:
-        # Create document to save
+     
         prediction_doc = {
             'user_id': user_id,
             'prediction_id': prediction_id or datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')[:-3],
@@ -259,8 +268,7 @@ def save_prediction_to_db(user_id, input_data, prediction, prediction_id=None):
             'predicted_stress_level': prediction,
             'stress_category': get_stress_category(prediction)
         }
-        
-        # Insert into MongoDB
+              
         result = predictions_collection.insert_one(prediction_doc)
         logger.info(f"✅ Prediction saved to MongoDB with ID: {result.inserted_id}")
         return str(result.inserted_id)
@@ -268,6 +276,8 @@ def save_prediction_to_db(user_id, input_data, prediction, prediction_id=None):
     except Exception as e:
         logger.error(f"❌ Error saving to MongoDB: {e}")
         return None
+    
+
 
 def get_stress_category(stress_level):
     """Categorize stress level"""
@@ -278,7 +288,7 @@ def get_stress_category(stress_level):
     else:
         return "High Stress"
 
-# API Routes
+
 
 @app.route('/')
 def home():
@@ -294,6 +304,7 @@ def home():
         }
     })
 
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -304,18 +315,23 @@ def health_check():
         'database_connected': predictions_collection is not None
     })
 
+
+#2.1: Flask backend stress prediction route handling user input,
+#  preprocessing, model inference, and returning predicted stress
+#  levels with categories and database logging
+
 @app.route('/predict', methods=['POST'])
 def predict_stress():
     """Main prediction endpoint"""
     try:
-        # Check if model is loaded
+      
         if model is None or scaler is None or metadata is None:
             return jsonify({
                 'success': False,
                 'error': 'Model not loaded. Please ensure model files are available.'
             }), 500
         
-        # Get JSON data from request
+      
         data = request.get_json()
         
         if not data:
@@ -323,16 +339,14 @@ def predict_stress():
                 'success': False,
                 'error': 'No data provided'
             }), 400
-        
-        # Validate required user_id
+  
         user_id = data.get('user_id')
         if not user_id:
             return jsonify({
                 'success': False,
                 'error': 'User ID is required'
             }), 400
-        
-        # Get user profile
+
         user_profile = get_user_profile(user_id)
         if not user_profile:
             return jsonify({
@@ -340,20 +354,13 @@ def predict_stress():
                 'error': 'User profile not found'
             }), 404
         
-        # Preprocess input data
-        feature_vector = preprocess_input(data, user_profile)
-        
-        # Scale features
+       
+        feature_vector = preprocess_input(data, user_profile)   
         scaled_features = scaler.transform([feature_vector])
-        
-        # Make prediction
         prediction = model.predict(scaled_features)[0]
         prediction = round(float(prediction), 2)
-        
-        # Save to database
         db_id = save_prediction_to_db(user_id, data, prediction)
-        
-        # Prepare response
+            
         response = {
             'success': True,
             'prediction': {
@@ -383,6 +390,8 @@ def predict_stress():
             'success': False,
             'error': f'Prediction failed: {str(e)}'
         }), 500
+    
+
 
 @app.route('/predictions/history', methods=['GET'])
 def get_prediction_history():
@@ -394,7 +403,7 @@ def get_prediction_history():
                 'error': 'Database not connected'
             }), 500
         
-        # Get user ID from query parameters
+      
         user_id = request.args.get('user_id')
         if not user_id:
             return jsonify({
@@ -402,7 +411,7 @@ def get_prediction_history():
                 'error': 'User ID is required'
             }), 400
         
-        # Get query parameters
+  
         try:
             limit = int(request.args.get('limit', 10))
             skip = int(request.args.get('skip', 0))
@@ -412,7 +421,7 @@ def get_prediction_history():
                 'error': 'Invalid limit or skip value'
             }), 400
         
-        # Query database for user's predictions
+     
         cursor = predictions_collection.find({'user_id': user_id}).sort('timestamp', -1).skip(skip).limit(limit)
         predictions = []
         
@@ -441,6 +450,8 @@ def get_prediction_history():
             'success': False,
             'error': f'Failed to fetch history: {str(e)}'
         }), 500
+    
+
 
 @app.route('/predictions/<prediction_id>', methods=['GET'])
 def get_prediction_by_id(prediction_id):
@@ -452,14 +463,14 @@ def get_prediction_by_id(prediction_id):
                 'error': 'Database not connected'
             }), 500
         
-        # Find prediction by MongoDB _id
+  
         try:
             doc = predictions_collection.find_one({'_id': ObjectId(prediction_id)})
         except:
             doc = None
             
         if not doc:
-            # Try searching by prediction_id field
+      
             doc = predictions_collection.find_one({'prediction_id': prediction_id})
             
         if not doc:
@@ -489,6 +500,11 @@ def get_prediction_by_id(prediction_id):
             'error': f'Failed to fetch prediction: {str(e)}'
         }), 500
 
+
+#2.3: Flask backend route for calculating user stress prediction statistics, 
+# including total, average, minimum, and maximum stress levels, 
+# along with category distribution
+
 @app.route('/stats', methods=['GET'])
 def get_prediction_stats():
     """Get prediction statistics for a user"""
@@ -499,7 +515,7 @@ def get_prediction_stats():
                 'error': 'Database not connected'
             }), 500
         
-        # Get user ID from query parameters
+     
         user_id = request.args.get('user_id')
         if not user_id:
             return jsonify({
@@ -507,7 +523,7 @@ def get_prediction_stats():
                 'error': 'User ID is required'
             }), 400
         
-        # Aggregate statistics for user
+  
         pipeline = [
             {'$match': {'user_id': user_id}},
             {
@@ -537,7 +553,7 @@ def get_prediction_stats():
                 'max_stress_level': 0
             }
         
-        # Get stress category distribution for user
+     
         category_pipeline = [
             {'$match': {'user_id': user_id}},
             {
@@ -551,7 +567,7 @@ def get_prediction_stats():
         category_result = list(predictions_collection.aggregate(category_pipeline))
         category_distribution = {item['_id']: item['count'] for item in category_result}
         
-        # Add missing categories with zero count
+    
         for category in ["Low Stress", "Medium Stress", "High Stress"]:
             if category not in category_distribution:
                 category_distribution[category] = 0
@@ -569,6 +585,9 @@ def get_prediction_stats():
             'error': f'Failed to fetch stats: {str(e)}'
         }), 500
     
+
+
+    
 @app.route('/stresshistory', methods=['GET'])
 def get_stress_history():
     """Get stress prediction history with filtering options"""
@@ -579,7 +598,7 @@ def get_stress_history():
                 'error': 'Database not connected'
             }), 500
         
-        # Get user ID from query parameters
+   
         user_id = request.args.get('user_id')
         if not user_id:
             return jsonify({
@@ -587,11 +606,9 @@ def get_stress_history():
                 'error': 'User ID is required'
             }), 400
         
-        # Build query filters
+ 
         query_filter = {'user_id': user_id}
-        
-        # Note: start_date and end_date should be in UTC (YYYY-MM-DD format)
-        # Date range filtering
+     
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         
@@ -611,7 +628,7 @@ def get_stress_history():
                     'error': 'Invalid date format. Use YYYY-MM-DD'
                 }), 400
         
-        # Stress level filtering
+   
         min_stress = request.args.get('min_stress')
         max_stress = request.args.get('max_stress')
         
@@ -629,7 +646,7 @@ def get_stress_history():
                     'error': 'Stress levels must be numeric'
                 }), 400
         
-        # Stress category filtering
+   
         category = request.args.get('category')
         if category:
             valid_categories = ['Low Stress', 'Medium Stress', 'High Stress']
@@ -640,13 +657,13 @@ def get_stress_history():
                 }), 400
             query_filter['stress_category'] = category
         
-        # Sorting options
-        sort_order = -1  # Default: newest first
+     
+        sort_order = -1 
         sort_param = request.args.get('sort')
         if sort_param == 'oldest':
             sort_order = 1
         
-        # Pagination parameters
+   
         try:
             limit = int(request.args.get('limit', 10))
             skip = int(request.args.get('skip', 0))
@@ -656,10 +673,10 @@ def get_stress_history():
                 'error': 'Invalid limit or skip value'
             }), 400
         
-        # Query database with filters
+      
         cursor = predictions_collection.find(query_filter).sort('timestamp', sort_order).skip(skip).limit(limit)
         
-        # Format results
+  
         predictions = []
         for doc in cursor:
             predictions.append({
@@ -674,7 +691,7 @@ def get_stress_history():
                 }
             })
         
-        # Get total count for pagination
+ 
         total_count = predictions_collection.count_documents(query_filter)
         
         return jsonify({
@@ -690,6 +707,8 @@ def get_stress_history():
             'success': False,
             'error': f'Failed to fetch stress history: {str(e)}'
         }), 500
+    
+
 
 @app.errorhandler(404)
 def not_found(error):
@@ -705,20 +724,20 @@ def internal_error(error):
         'error': 'Internal server error'
     }), 500
 
-# Initialize the application
+
 def initialize_app():
     """Initialize the application"""
     logger.info("🚀 Starting Flask application...")
     
-    # Initialize database
+
     if not initialize_db():
         logger.error("❌ Failed to initialize database")
     
-    # Load model artifacts
+
     if not load_model_artifacts():
         logger.warning("⚠️ Model artifacts not loaded. Prediction endpoint will not work.")
     
-    # Create indexes if database is connected
+   
     if predictions_collection is not None:
         try:
             predictions_collection.create_index([("timestamp", -1)])
