@@ -39,6 +39,10 @@ users_collection = None
 
 scheduler = BackgroundScheduler(daemon=True)
 
+
+#1.5: Background function for generating and emailing weekly wellness reports to users,
+#  including metric aggregation, HTML report creation, and error logging
+
 def weekly_report_job():
     """Generate and send weekly reports to all users"""
     logger.info("Starting weekly report job")
@@ -51,13 +55,13 @@ def weekly_report_job():
                 try:
                     logger.info(f"Generating report for user: {user['email']}")
                     
-                    # Fetch user metrics from various services
+                  
                     metrics = fetch_user_metrics(str(user['_id']))
                     
-                    # Generate HTML report (changed from PDF)
+                   
                     html_report = generate_html_report(user, metrics)
                     
-                    # Prepare email content (updated for HTML)
+                 
                     body = f"""
 Hi {user['full_name']},
 
@@ -68,12 +72,12 @@ Best regards,
 The Mentora Team
                     """
                     
-                    # Send email with HTML content (no attachment)
+              
                     if send_email(
                         to=user['email'],
                         subject="Your Weekly Wellness Report",
                         body=body,
-                        html=html_report  # New param for HTML
+                        html=html_report 
                     ):
                         report_count += 1
                         logger.info(f"Weekly report sent successfully to {user['email']}")
@@ -90,6 +94,10 @@ The Mentora Team
         logger.error(f"Weekly report job failed: {str(e)}")
 
 
+#1.6: Background function for sending daily wellness reminders
+#  to users via email, including personalized streak messages, 
+# HTML formatting, and error logging
+
 def daily_reminder_job():
     """Send professional daily reminders to all users"""
     logger.info("Starting daily reminder job")
@@ -97,7 +105,6 @@ def daily_reminder_job():
         with app.app_context():
             users = users_collection.find({})
             reminder_count = 0
-
             for user in users:
                 try:
                     logger.info(f"Sending reminder to user: {user['email']}")
@@ -107,9 +114,7 @@ def daily_reminder_job():
                         f"You're on a {current_streak}-day streak. Keep up the great work!"
                         if current_streak > 0 else
                         "Start your wellness streak today and track your progress!"
-                    )
-
-                    # Plain text version
+                    )                   
                     plain_body = f"""
 Hi {user['full_name']},
 
@@ -121,7 +126,7 @@ Best regards,
 Mentora Team
                     """
 
-                    # Professional HTML version
+           
                     html_body = f"""
 <!DOCTYPE html>
 <html>
@@ -196,11 +201,14 @@ Mentora Team
         logger.error(f"Daily reminder job failed: {str(e)}")
 
 
+
+
+
 def initialize_scheduler():
     """Initialize and start the scheduler with proper error handling"""
     try:
         if not scheduler.running:
-            # Add weekly report job - every Monday at 9 AM
+          
             scheduler.add_job(
                 func=weekly_report_job,
                 trigger='cron',
@@ -211,7 +219,7 @@ def initialize_scheduler():
                 replace_existing=True
             )
             
-            # Add daily reminder job - every day at 5 PM
+         
             scheduler.add_job(
                 func=daily_reminder_job,
                 trigger='cron',
@@ -223,14 +231,17 @@ def initialize_scheduler():
             
             scheduler.start()
             logger.info("Scheduler started successfully")
-            
-            # Register shutdown handler
+           
             atexit.register(lambda: scheduler.shutdown())
             
         return True
     except Exception as e:
         logger.error(f"Failed to initialize scheduler: {str(e)}")
         return False
+    
+
+#1.7: Utility function for sending emails with optional 
+# HTML content and PDF attachments, including configuration checks and error logging    
     
 def send_email(to, subject, body, html=None, attachment=None, filename=None):
     """Send email with optional HTML body and PDF attachment (professional version)"""
@@ -240,7 +251,7 @@ def send_email(to, subject, body, html=None, attachment=None, filename=None):
             return False
 
         msg = Message(subject, recipients=[to])
-        msg.body = body  # Plain text fallback
+        msg.body = body 
 
         if html:
             msg.html = html
@@ -259,6 +270,9 @@ def send_email(to, subject, body, html=None, attachment=None, filename=None):
         return False
 
 
+#1.8: Utility function for fetching user wellness metrics from multiple microservices, 
+# aggregating data, and calculating summary statistics for
+#  email reports, with robust error handling and logging
 
 def fetch_user_metrics(user_id):
     """Fetch metrics from existing endpoints with better error handling"""
@@ -292,13 +306,13 @@ def fetch_user_metrics(user_id):
                 data = response.json()
                 logger.debug(f"Raw {metric} data: {data}")
                 
-                # Extract history data based on service response structure
+               
                 if metric == 'stress':
                     history = data.get('predictions', [])
                 elif metric in ['mental', 'academic']:
                     history = data.get('history', [])
                 elif metric == 'mobile':
-                    history = data  # Direct list
+                    history = data 
                 else:
                     history = []
                 
@@ -312,14 +326,14 @@ def fetch_user_metrics(user_id):
         except Exception as e:
             logger.error(f"Error fetching {metric} data: {str(e)}")
     
-    # Calculate summary statistics
+
     try:
-        # Stress: Extract 'stress_level' from each prediction
+       
         if metrics['stress']:
             stress_values = [float(entry.get('stress_level', 0)) for entry in metrics['stress']]
             metrics['summary']['averageStress'] = sum(stress_values) / len(stress_values) if stress_values else 0
         
-        # Mental: Extract 'Mood_Rating_1_to_10' from input_data
+       
         if metrics['mental']:
             mental_values = []
             for entry in metrics['mental']:
@@ -328,7 +342,7 @@ def fetch_user_metrics(user_id):
                 mental_values.append(float(mood_rating))
             metrics['summary']['averageMentalHealth'] = sum(mental_values) / len(mental_values) if mental_values else 0
         
-        # Mobile: Extract 'daily_screen_time' from input_data
+      
         if metrics['mobile']:
             screen_values = []
             for entry in metrics['mobile']:
@@ -337,7 +351,7 @@ def fetch_user_metrics(user_id):
                 screen_values.append(float(screen_time))
             metrics['summary']['screenTimeAverage'] = sum(screen_values) / len(screen_values) if screen_values else 0
         
-        # Academic: Determine most common 'academic_impact'
+     
         if metrics['academic']:
             academic_entries = metrics['academic']
             if academic_entries:
@@ -348,6 +362,8 @@ def fetch_user_metrics(user_id):
         logger.error(f"Error calculating summary metrics: {str(e)}")
     
     return metrics
+
+
 
 def initialize_database():
     """Initialize database connection with error handling"""
@@ -362,8 +378,7 @@ def initialize_database():
         logger.info(f"Database Name: {db_name}")
         
         client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
-        
-        # Test the connection
+    
         client.admin.command('ping')
         
         db = client[db_name]
@@ -386,29 +401,28 @@ def validate_email(email):
 def validate_signup_data(data):
     """Server-side validation for signup data"""
     errors = {}
-    
-    # Check if data is None or empty
+ 
     if not data:
         return {'general': 'No data provided'}
     
-    # Required fields validation
+ 
     required_fields = ['full_name', 'email', 'password', 'age', 'gender', 'occupation_or_academic_level', 'country']
     
     for field in required_fields:
         if field not in data or not str(data[field]).strip():
             errors[field] = f'{field.replace("_", " ").title()} is required'
     
-    # Email validation
+
     if 'email' in data and data['email']:
         if not validate_email(data['email']):
             errors['email'] = 'Please enter a valid email address'
     
-    # Password validation
+
     if 'password' in data and data['password']:
         if len(data['password']) < 6:
             errors['password'] = 'Password must be at least 6 characters long'
     
-    # Age validation
+
     if 'age' in data and data['age']:
         try:
             age = int(data['age'])
@@ -425,23 +439,23 @@ def calculate_streak_update(last_login_date):
     Returns tuple: (should_increment_streak, should_reset_streak)
     """
     if not last_login_date:
-        # First time login
+        
         return False, True
     
     today = datetime.utcnow().date()
     last_login = last_login_date.date() if isinstance(last_login_date, datetime) else last_login_date
     
-    # Calculate days difference
+   
     days_diff = (today - last_login).days
     
     if days_diff == 0:
-        # Same day login - no streak update needed
+       
         return False, False
     elif days_diff == 1:
-        # Consecutive day login - increment streak
+       
         return True, False
     else:
-        # Missed days - reset streak to 1
+      
         return False, True
 
 @app.before_request
@@ -467,35 +481,31 @@ def home():
         }
     }), 200
 
+#1.1: Flask backend signup route implementation handling user registration, 
+# including input validation, password hashing, duplicate email checking, 
+# and MongoDB insertion with error logging
+
 @app.route('/signup', methods=['POST'])
 def signup():
     """Handle user signup"""
-    try:
-        # Get JSON data from request
+    try: 
         data = request.get_json()
         logger.info(f"Signup request received: {data.get('email', 'No email') if data else 'No data'}")
-        
         if not data:
             logger.warning("No data provided in signup request")
             return jsonify({'message': 'No data provided'}), 400
-        
-        # Server-side validation
         validation_errors = validate_signup_data(data)
         if validation_errors:
             logger.warning(f"Validation errors: {validation_errors}")
             return jsonify({'errors': validation_errors}), 400
-        
-        # Check if email already exists
+    
         email = data['email'].lower().strip()
         existing_user = users_collection.find_one({'email': email})
         if existing_user:
             logger.warning(f"Signup attempt with existing email: {email}")
             return jsonify({'errors': {'email': 'Email already exists. Please use a different email.'}}), 400
-        
-        # Hash the password securely
+             
         hashed_password = generate_password_hash(data['password'])
-        
-        # Prepare user document for MongoDB
         user_document = {
             'full_name': data['full_name'].strip(),
             'email': email,
@@ -512,7 +522,7 @@ def signup():
             'streak_resets_this_month': 0
         }
         
-        # Insert new user into MongoDB
+       
         result = users_collection.insert_one(user_document)
         
         if result.inserted_id:
@@ -528,12 +538,17 @@ def signup():
     except Exception as e:
         logger.error(f"Signup error: {str(e)}")
         return jsonify({'message': 'Internal server error'}), 500
+    
+
+#1.2: Flask backend login route implementation handling user authentication, 
+# password verification, streak tracking, and MongoDB update with error logging
+
 
 @app.route('/login', methods=['POST'])
 def login():
     """Handle user login with streak tracking"""
     try:
-        # Get JSON data from request
+
         data = request.get_json()
         logger.info(f"Login request received: {data.get('email', 'No email') if data else 'No data'}")
         
@@ -541,7 +556,7 @@ def login():
             logger.warning("No data provided in login request")
             return jsonify({'message': 'No data provided'}), 400
         
-        # Validate required fields
+   
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
         
@@ -549,51 +564,42 @@ def login():
             logger.warning("Missing email or password in login request")
             return jsonify({'message': 'Email and password are required'}), 400
         
-        # Find user in database
+       
         user = users_collection.find_one({'email': email})
         
         if not user:
             logger.warning(f"Login attempt with non-existent email: {email}")
             return jsonify({'message': 'Invalid email or password'}), 401
         
-        # Verify password using secure comparison
+     
         if not check_password_hash(user['password'], password):
             logger.warning(f"Invalid password attempt for email: {email}")
             return jsonify({'message': 'Invalid email or password'}), 401
         
-        # Password is correct - proceed with login logic
+       
         current_streak = user.get('current_streak', 0)
         max_streak = user.get('max_streak', 0)
         last_login_date = user.get('last_login_date')
-        
-        # Calculate streak updates
         should_increment, should_reset = calculate_streak_update(last_login_date)
         
         if should_increment:
             current_streak += 1
         elif should_reset:
             current_streak = 1
-        
-        # Update max_streak if current streak exceeds it
         if current_streak > max_streak:
             max_streak = current_streak
-        
-        # Prepare update document
+           
         update_data = {
             'current_streak': current_streak,
             'max_streak': max_streak,
             'last_login_date': datetime.utcnow()
-        }
-        
-        # Update user document in MongoDB
+        }           
         result = users_collection.update_one(
             {'_id': user['_id']},
             {'$set': update_data}
-        )
-        
+        )        
         logger.info(f"Successful login for user: {email}")
-        
-        # Return successful login response with user_id
+              
         return jsonify({
             'message': 'Login successful',
             'user_id': str(user['_id']),
@@ -609,24 +615,27 @@ def login():
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
         return jsonify({'message': 'Internal server error'}), 500
+    
+
+
+#1.3: Flask backend route for retrieving user data by user ID,
+#  including profile information and streak details,
+#  with validation and error logging
 
 @app.route('/user/<user_id>', methods=['GET'])
 def get_user(user_id):
     """Get user data by user_id"""
-    try:
-        # Validate user_id format
+    try: 
         if not ObjectId.is_valid(user_id):
             logger.warning(f"Invalid user_id format: {user_id}")
             return jsonify({'message': 'Invalid user ID format'}), 400
-        
-        # Find user in database
+              
         user = users_collection.find_one({'_id': ObjectId(user_id)})
         
         if not user:
             logger.warning(f"User not found: {user_id}")
             return jsonify({'message': 'User not found'}), 404
-        
-        # Return user data (excluding password)
+                
         user_data = {
             'user_id': str(user['_id']),
             'full_name': user['full_name'],
@@ -647,23 +656,30 @@ def get_user(user_id):
     except Exception as e:
         logger.error(f"Get user error: {str(e)}")
         return jsonify({'message': 'Internal server error'}), 500
+    
+
+
+
+#1.4: Flask backend profile route implementation supporting retrieval 
+# and update of user profile data, including streak management, 
+# password updates, and monthly reset limits with validation and error logging
 
 @app.route('/profile/<user_id>', methods=['GET', 'PUT'])
 def user_profile(user_id):
     """User profile retrieval and update endpoint"""
     try:
-        # Validate user_id format
+       
         if not ObjectId.is_valid(user_id):
             return jsonify({'message': 'Invalid user ID format'}), 400
             
-        # Find user in database
+       
         user = users_collection.find_one({'_id': ObjectId(user_id)})
         if not user:
             return jsonify({'message': 'User not found'}), 404
 
-        # GET: Return profile data
+
         if request.method == 'GET':
-            # Calculate remaining streak resets
+       
             current_month = datetime.utcnow().strftime("%Y-%m")
             streak_reset_month = user.get('streak_reset_month', "")
             streak_resets_this_month = user.get('streak_resets_this_month', 0)
@@ -685,67 +701,67 @@ def user_profile(user_id):
             }
             return jsonify(profile_data), 200
 
-        # PUT: Update profile data
+      
         elif request.method == 'PUT':
             data = request.get_json()
             if not data:
                 return jsonify({'message': 'No update data provided'}), 400
 
-            # Initialize update data and validation
+          
             update_data = {}
             errors = {}
             current_month = datetime.utcnow().strftime("%Y-%m")
 
-            # Handle password update
+         
             if 'password' in data:
                 if len(data['password']) >= 6:
                     update_data['password'] = generate_password_hash(data['password'])
                 else:
                     errors['password'] = 'Password must be at least 6 characters'
 
-            # Handle streak reset with monthly limits
+           
             if 'current_streak' in data:
                 try:
                     new_streak = int(data['current_streak'])
                     if new_streak < 0:
                         errors['current_streak'] = 'Streak cannot be negative'
                     
-                    # Check if streak is actually being changed
+                 
                     elif new_streak != user.get('current_streak', 0):
-                        # Check reset limits
+                   
                         streak_reset_month = user.get('streak_reset_month', "")
                         streak_resets = user.get('streak_resets_this_month', 0)
                         
-                        # Reset monthly counter if month changed
+                       
                         if streak_reset_month != current_month:
                             streak_resets = 0
                             update_data['streak_reset_month'] = current_month
                         
-                        # Check available resets
+
                         if streak_resets >= 3:
                             errors['current_streak'] = 'Monthly streak reset limit (3) reached'
                         else:
-                            # Apply streak update
+                        
                             update_data['current_streak'] = new_streak
                             update_data['streak_resets_this_month'] = streak_resets + 1
                             
-                            # Update max streak if needed
+                           
                             if new_streak > user.get('max_streak', 0):
                                 update_data['max_streak'] = new_streak
                 except (TypeError, ValueError):
                     errors['current_streak'] = 'Streak must be a positive integer'
-
-            # Handle other fields
+        
             allowed_fields = [
                 'full_name', 'age', 'gender', 
                 'occupation_or_academic_level', 'country'
             ]
+
             
             for field in allowed_fields:
                 if field in data:
                     value = str(data[field]).strip()
                     if value:
-                        # Special validation for age
+                  
                         if field == 'age':
                             try:
                                 age_val = int(value)
@@ -760,11 +776,10 @@ def user_profile(user_id):
                     else:
                         errors[field] = f'{field.replace("_", " ").title()} cannot be empty'
 
-            # Return errors if any
             if errors:
                 return jsonify({'errors': errors}), 400
                 
-            # Update database if valid changes
+       
             if update_data:
                 result = users_collection.update_one(
                     {'_id': user['_id']},
@@ -774,7 +789,6 @@ def user_profile(user_id):
                 if result.modified_count == 0:
                     return jsonify({'message': 'No changes detected'}), 200
 
-            # Calculate remaining streak resets for response
             updated_resets = update_data.get('streak_resets_this_month', user.get('streak_resets_this_month', 0))
             remaining_resets = 3 - updated_resets
             
@@ -786,12 +800,14 @@ def user_profile(user_id):
     except Exception as e:
         logger.error(f"Profile error: {str(e)}")
         return jsonify({'message': 'Internal server error'}), 500
+    
+
 
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
     try:
-        # Test database connection
+
         if users_collection is not None:
             users_collection.find_one()
             db_status = 'Connected'
@@ -839,7 +855,7 @@ if __name__ == '__main__':
     if initialize_database():
         print(f"✓ Database connection established")
         
-        # Initialize scheduler
+    
         if initialize_scheduler():
             print(f"✓ Scheduler initialized - Jobs scheduled")
         else:
