@@ -60,13 +60,18 @@ def initialize_database():
     except Exception as e:
         logger.error(f"Error connecting to MongoDB: {e}")
         return False
+    
+
+#.1: Loading process for the academic performance 
+# and addiction prediction models, including associated preprocessing
+#  objects such as scalers, label encoders, and feature column definitions.
 
 def load_ml_models():
     """Load the trained ML models and preprocessing objects"""
     global academic_model, addiction_model, scaler, label_encoders, feature_columns
     
     try:
-        # Load models and preprocessing objects
+      
         academic_model = joblib.load('students_models/academic_performance_model.joblib')
         addiction_model = joblib.load('students_models/addiction_score_model.joblib')
         scaler = joblib.load('students_models/feature_scaler.joblib')
@@ -79,6 +84,9 @@ def load_ml_models():
     except Exception as e:
         logger.error(f"Error loading ML models: {e}")
         return False
+    
+
+
 
 def validate_prediction_data(data):
     """Server-side validation for prediction data"""
@@ -87,7 +95,6 @@ def validate_prediction_data(data):
     if not data:
         return {'general': 'No data provided'}
     
-    # Required fields validation
     required_fields = ['age', 'gender', 'academic_level', 'country', 'avg_daily_usage_hours', 
                       'most_used_platform', 'sleep_hours_per_night', 'mental_health_score', 
                       'relationship_status', 'conflicts_over_social_media', 'local_timestamp']
@@ -95,8 +102,6 @@ def validate_prediction_data(data):
     for field in required_fields:
         if field not in data or str(data[field]).strip() == '':
             errors[field] = f'{field.replace("_", " ").title()} is required'
-    
-    # Numeric validations
     try:
         if 'age' in data and data['age']:
             age = float(data['age'])
@@ -137,15 +142,16 @@ def validate_prediction_data(data):
     except (ValueError, TypeError):
         errors['conflicts_over_social_media'] = 'Conflicts score must be a valid number'
     
-    # Validate local_timestamp format
     if 'local_timestamp' in data and data['local_timestamp']:
         try:
-            # Try to parse the timestamp to ensure it's valid
             datetime.fromisoformat(data['local_timestamp'])
         except (ValueError, TypeError):
             errors['local_timestamp'] = 'Invalid timestamp format'
     
     return errors
+
+
+
 
 def predict_social_media_impact(age, gender, academic_level, country, avg_daily_usage, 
                                platform, sleep_hours, mental_health_score, 
@@ -196,6 +202,8 @@ def predict_social_media_impact(age, gender, academic_level, country, avg_daily_
     except Exception as e:
         logger.error(f"Prediction error: {str(e)}")
         raise e
+    
+
 
 def generate_personalized_tips(academic_result, addiction_score, input_data):
     """Generate personalized tips based on predictions and user data"""
@@ -318,12 +326,14 @@ def get_today_prediction():
     except Exception as e:
         logger.error(f"Error fetching today's prediction: {str(e)}")
         return jsonify({'message': 'Error fetching prediction'}), 500
+    
+
+
 
 @app.route('/predictacademicperformance', methods=['POST'])
 def predict_academic_performance():
     """Handle prediction request and save to database"""
     try:
-        # Get JSON data from request
         data = request.get_json()
         logger.info(f"Prediction request received")
         
@@ -331,13 +341,13 @@ def predict_academic_performance():
             logger.warning("No data provided in prediction request")
             return jsonify({'message': 'No data provided'}), 400
         
-        # Server-side validation
+   
         validation_errors = validate_prediction_data(data)
         if validation_errors:
             logger.warning(f"Validation errors: {validation_errors}")
             return jsonify({'errors': validation_errors}), 400
         
-        # Extract data
+
         age = data['age']
         gender = data['gender']
         academic_level = data['academic_level']
@@ -348,16 +358,14 @@ def predict_academic_performance():
         mental_health_score = data['mental_health_score']
         relationship_status = data['relationship_status']
         conflicts = data['conflicts_over_social_media']
-        user_id = data.get('user_id')  # Optional user_id from session/auth
-        local_timestamp = data['local_timestamp']  # New field from frontend
-        
-        # Make prediction
+        user_id = data.get('user_id') 
+        local_timestamp = data['local_timestamp'] 
+       
         academic_result, addiction_score = predict_social_media_impact(
             age, gender, academic_level, country, avg_daily_usage,
             platform, sleep_hours, mental_health_score, relationship_status, conflicts
         )
         
-        # Generate personalized tips
         tips = generate_personalized_tips(
             academic_result,
             addiction_score,
@@ -369,7 +377,6 @@ def predict_academic_performance():
             }
         )
         
-        # Prepare document for MongoDB
         prediction_document = {
             'user_id': ObjectId(user_id) if ObjectId.is_valid(user_id) else user_id,
             'input_data': {
@@ -383,23 +390,20 @@ def predict_academic_performance():
                 'mental_health_score': int(mental_health_score),
                 'relationship_status': relationship_status,
                 'conflicts_over_social_media': int(conflicts),
-                'local_timestamp': local_timestamp  # Store local timestamp from frontend
+                'local_timestamp': local_timestamp  
             },
             'predictions': {
                 'affects_academic_performance': academic_result,
                 'addiction_score': addiction_score
             },
-            'personalized_tips': tips,  # Store tips in database
-            'timestamp': datetime.utcnow()  # Server's UTC timestamp
+            'personalized_tips': tips,  
+            'timestamp': datetime.utcnow() 
         }
-        
-        # Save to MongoDB
         result = students_collection.insert_one(prediction_document)
         
         if result.inserted_id:
             logger.info(f"Prediction saved successfully: {str(result.inserted_id)}")
             
-            # Generate interpretation messages
             addiction_level = "High" if addiction_score >= 7 else "Moderate" if addiction_score >= 4 else "Low"
             
             return jsonify({
@@ -413,8 +417,8 @@ def predict_academic_performance():
                     'academic_impact': f"Social media {'does' if academic_result == 'Yes' else 'does not'} significantly affect academic performance",
                     'addiction_level': f"Addiction score: {addiction_score}/10 - {addiction_level} risk"
                 },
-                'personalized_tips': tips,  # Send tips in response
-                'local_timestamp': local_timestamp  # Return local timestamp to frontend
+                'personalized_tips': tips,  
+                'local_timestamp': local_timestamp 
             }), 200
         else:
             logger.error("Failed to save prediction to database")
@@ -434,27 +438,26 @@ def predict_academic_performance():
     except Exception as e:
         logger.error(f"Prediction error: {str(e)}")
         return jsonify({'message': 'Internal server error during prediction'}), 500
+    
+
+
 
 @app.route('/academichistory', methods=['GET'])
 def get_academic_history():
     """Get prediction history for a user with optional filters"""
     try:
-        # Get parameters from query string
         user_id = request.args.get('user_id')
         from_date = request.args.get('from_date')
         to_date = request.args.get('to_date')
         addiction_score_min = request.args.get('addiction_score_min')
         addiction_score_max = request.args.get('addiction_score_max')
         
-        # Validate required user_id
         if not user_id:
             logger.warning("Missing user_id in academic history request")
             return jsonify({'message': 'User ID is required'}), 400
         
-        # Build query filters
         query = {'user_id': user_id}
-        
-        # Date range filter
+
         if from_date or to_date:
             date_filter = {}
             if from_date:
@@ -464,14 +467,12 @@ def get_academic_history():
                     return jsonify({'message': 'Invalid from_date format. Use ISO format'}), 400
             if to_date:
                 try:
-                    # Include entire end date
                     to_date_dt = datetime.fromisoformat(to_date)
                     date_filter['$lte'] = to_date_dt.replace(hour=23, minute=59, second=59)
                 except (ValueError, TypeError):
                     return jsonify({'message': 'Invalid to_date format. Use ISO format'}), 400
             query['timestamp'] = date_filter
-        
-        # Addiction score filter
+
         if addiction_score_min or addiction_score_max:
             score_filter = {}
             try:
@@ -482,11 +483,9 @@ def get_academic_history():
                 query['predictions.addiction_score'] = score_filter
             except ValueError:
                 return jsonify({'message': 'Addiction scores must be integers'}), 400
-        
-        # Fetch history from MongoDB
+            
         history = students_collection.find(query).sort('timestamp', -1)
-        
-        # Format results
+
         results = []
         for doc in history:
             results.append({
@@ -510,6 +509,9 @@ def get_academic_history():
     except Exception as e:
         logger.error(f"Error fetching academic history: {str(e)}")
         return jsonify({'message': 'Error fetching history data'}), 500
+
+
+
 
 @app.route('/health', methods=['GET'])
 def health_check():
