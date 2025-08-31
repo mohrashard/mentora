@@ -48,6 +48,11 @@ CAFFEINE_CONTENT = {
     'Espresso': 64
 }
 
+
+#3.1: Database initialization function establishing a MongoDB connection, 
+# verifying connectivity with a ping, and setting up collections 
+# (users, mental_health) with error handling and logging
+
 def initialize_database():
     """Initialize MongoDB connection"""
     global client, db, users_collection, mental_health_collection
@@ -59,7 +64,7 @@ def initialize_database():
         logger.info(f"Connecting to MongoDB: {mongo_uri}")
         client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
         
-        # Test connection
+       
         client.admin.command('ping')
         
         db = client[db_name]
@@ -72,20 +77,21 @@ def initialize_database():
     except Exception as e:
         logger.error(f"MongoDB connection error: {e}")
         return False
+    
+
+#3.2: Model loader function for initializing pre-trained ML models
+#  (mental health, depression, anxiety) and feature metadata
+#  from disk using Joblib, with error handling and logging
 
 def load_models():
     """Load the pre-trained ML models"""
-    global models_loaded, best_mh_model, best_dep_model, best_anx_model, X_features
-    
+    global models_loaded, best_mh_model, best_dep_model, best_anx_model, X_features    
     try:
-        model_dir = "mental_health_models"
-        
-        # Check if model directory exists
+        model_dir = "mental_health_models"   
         if not os.path.exists(model_dir):
             logger.error(f"Model directory '{model_dir}' not found")
             return False
-            
-        # Load models
+                    
         best_mh_model = joblib.load(os.path.join(model_dir, 'mental_health_model.joblib'))
         best_dep_model = joblib.load(os.path.join(model_dir, 'depression_model.joblib'))
         best_anx_model = joblib.load(os.path.join(model_dir, 'anxiety_model.joblib'))
@@ -98,6 +104,9 @@ def load_models():
     except Exception as e:
         logger.error(f"Error loading models: {e}")
         return False
+    
+
+
 
 def calculate_caffeine_intake(drinks_data):
     """Calculate total caffeine intake from drinks list"""
@@ -117,6 +126,9 @@ def calculate_caffeine_intake(drinks_data):
     
     return total_caffeine
 
+
+
+
 def get_user_data(user_id):
     """Fetch user data from MongoDB"""
     try:
@@ -129,6 +141,9 @@ def get_user_data(user_id):
     except Exception as e:
         logger.error(f"Error fetching user data: {e}")
         return None
+    
+
+
 
 def predict_mental_health(input_data):
     """Make predictions using the loaded ML models"""
@@ -136,15 +151,12 @@ def predict_mental_health(input_data):
         if not models_loaded:
             raise Exception("Models not loaded")
         
-        # Convert input to DataFrame
+   
         input_df = pd.DataFrame([input_data])
         
-        # Make predictions
         mh_pred = best_mh_model.predict(input_df[X_features])[0]
         dep_pred = best_dep_model.predict(input_df[X_features])[0]
-        anx_pred = best_anx_model.predict(input_df[X_features])[0]
-        
-        # Get prediction probabilities
+        anx_pred = best_anx_model.predict(input_df[X_features])[0]        
         mh_prob = best_mh_model.predict_proba(input_df[X_features])[0].max()
         dep_prob = best_dep_model.predict_proba(input_df[X_features])[0].max()
         anx_prob = best_anx_model.predict_proba(input_df[X_features])[0].max()
@@ -161,6 +173,8 @@ def predict_mental_health(input_data):
     except Exception as e:
         logger.error(f"Prediction error: {e}")
         raise
+
+
 
 def generate_recommendations(prediction_results, caffeine_intake):
     """Generate recommendations based on prediction results and input data"""
@@ -212,6 +226,9 @@ def generate_recommendations(prediction_results, caffeine_intake):
     
     return recommendations_unique
 
+
+
+
 def store_prediction_result(user_id, input_data, prediction_results, recommendations):
     """Store prediction results in MongoDB"""
     try:
@@ -230,6 +247,8 @@ def store_prediction_result(user_id, input_data, prediction_results, recommendat
     except Exception as e:
         logger.error(f"Error storing prediction result: {e}")
         return None
+    
+
 
 @app.before_request
 def check_connections():
@@ -256,56 +275,55 @@ def home():
         }
     }), 200
 
+#3.5: Flask API endpoint /predictmentalhealth – Handles POST requests to process user data,
+#  validate inputs, compute caffeine intake, run ML model predictions, generate recommendations,
+#  store results, and return a structured JSON response with predictions, confidence scores, 
+# recommendations, and insights.
+
+
 @app.route('/predictmentalhealth', methods=['POST'])
 def predict_mental_health_endpoint():
     """Main prediction endpoint"""
     try:
-        # Get JSON data from request
+  
         data = request.get_json()
         
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
-        # Extract user ID
+ 
         user_id = data.get('user_id')
         if not user_id:
             return jsonify({'error': 'User ID is required'}), 400
-        
-        # Fetch user data from MongoDB
+     
         user_data = get_user_data(user_id)
         if not user_data:
             return jsonify({'error': 'User not found'}), 404
         
-        # Auto-fill Age and Gender from user data
+  
         age = user_data.get('age')
         gender = user_data.get('gender')
         
         if not age or not gender:
             return jsonify({'error': 'User profile incomplete. Age and Gender required.'}), 400
         
-        # Calculate caffeine intake from drinks
+      
         drinks_data = data.get('drinks', [])
         caffeine_intake = calculate_caffeine_intake(drinks_data)
         
-        # Prepare input data for prediction
+     
         input_data = {
-            # Auto-filled from user profile
+         
             'Age': int(age),
-            'Gender': gender,
-            
-            # Calculated field
+            'Gender': gender,          
             'Caffeine_Intake_mg_per_day': caffeine_intake,
-            
-            # Required fields from form
             'Sleep_Duration_hours_per_night': float(data.get('sleep_hours', 7)),
             'Sleep_Quality_1_to_10': int(data.get('sleep_quality', 5)),
             'Mood_Rating_1_to_10': int(data.get('mood_rating', 5)),
             'Stress_Level': str(data.get('stress_level', 'Medium')),
             'Smoking_Habits': str(data.get('smoking_habits', 'Never')),
             'Drinking_Habits': str(data.get('drinking_habits', 'Never')),
-            'Social_Interaction_Level': str(data.get('social_interaction_level', 'Medium')),
-            
-            # Optional fields with defaults
+            'Social_Interaction_Level': str(data.get('social_interaction_level', 'Medium')),           
             'Screen_Time_hours_per_day': float(data.get('screen_time', 4)),
             'Physical_Activity_hours_per_week': float(data.get('physical_activity', 3)),
             'Diet_Quality_1_to_10': int(data.get('diet_quality', 5)),
@@ -314,22 +332,22 @@ def predict_mental_health_endpoint():
             'Chronic_Health_Issues': str(data.get('chronic_health_issues', 'No'))
         }
         
-        # Validate required numerical fields
+      
         numerical_fields = ['sleep_hours', 'mood_rating']
         for field in numerical_fields:
             if field not in data:
                 return jsonify({'error': f'{field} is required'}), 400
         
-        # Make prediction
+      
         prediction_results = predict_mental_health(input_data)
         
-        # Generate recommendations
+ 
         recommendations = generate_recommendations(prediction_results, caffeine_intake)
         
-        # Store results in MongoDB
+     
         storage_id = store_prediction_result(user_id, input_data, prediction_results, recommendations)
         
-        # Prepare response
+      
         response_data = {
             'success': True,
             'timestamp': datetime.utcnow().isoformat(),
@@ -368,6 +386,9 @@ def predict_mental_health_endpoint():
     except Exception as e:
         logger.error(f"Prediction endpoint error: {e}")
         return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
+    
+
+
 
 @app.route('/user/<user_id>/history', methods=['GET'])
 def get_user_history(user_id):
@@ -375,14 +396,12 @@ def get_user_history(user_id):
     try:
         if not ObjectId.is_valid(user_id):
             return jsonify({'error': 'Invalid user ID format'}), 400
-        
-        # Get user's prediction history
+       
         history = list(mental_health_collection.find(
             {'user_id': user_id},
             {'_id': 0, 'user_id': 0}
         ).sort('timestamp', -1).limit(10))
         
-        # Convert datetime objects to ISO format
         for record in history:
             if 'timestamp' in record:
                 record['timestamp'] = record['timestamp'].isoformat()
@@ -398,6 +417,10 @@ def get_user_history(user_id):
     except Exception as e:
         logger.error(f"History endpoint error: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+    
+
+
+
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -406,7 +429,6 @@ def health_check():
         db_status = 'Connected' if users_collection is not None else 'Disconnected'
         models_status = 'Loaded' if models_loaded else 'Not Loaded'
         
-        # Test database connection
         if users_collection is not None:
             users_collection.find_one()
         
@@ -427,11 +449,16 @@ def health_check():
         }), 200
 
 
+
+#3.6: API endpoint /mentalhistory for retrieving a user’s mental 
+# health prediction history with support for pagination, 
+# sorting, and optional date filtering, while ensuring validation and structured JSON response
+
+
 @app.route('/mentalhistory', methods=['GET'])
 def get_mental_history():
     """Get mental health history for a user with filtering options"""
-    try:
-        # Get query parameters
+    try:      
         user_id = request.args.get('user_id')
         limit = int(request.args.get('limit', 10))
         skip = int(request.args.get('skip', 0))
@@ -440,16 +467,12 @@ def get_mental_history():
         to_date = request.args.get('to_date')
         
         if not user_id:
-            return jsonify({'error': 'User ID is required'}), 400
-            
-        # Validate user ID format
+            return jsonify({'error': 'User ID is required'}), 400 
         if not ObjectId.is_valid(user_id):
             return jsonify({'error': 'Invalid user ID format'}), 400
-        
-        # Build query filter
+             
         query_filter = {'user_id': user_id}
-        
-        # Add date range filter if provided
+              
         if from_date or to_date:
             date_filter = {}
             try:
@@ -461,16 +484,13 @@ def get_mental_history():
             except ValueError:
                 return jsonify({'error': 'Invalid date format. Use ISO format (YYYY-MM-DDTHH:MM:SS)'}), 400
         
-        # Get total count of records
         total_count = mental_health_collection.count_documents(query_filter)
         
-        # Get paginated results
         history = list(mental_health_collection.find(
             query_filter,
             {'_id': 0, 'user_id': 0}
         ).sort('timestamp', sort_direction).skip(skip).limit(limit))
-        
-        # Convert datetime objects to ISO format
+              
         for record in history:
             if 'timestamp' in record:
                 record['timestamp'] = record['timestamp'].isoformat()
@@ -495,6 +515,7 @@ def get_mental_history():
 
 
 
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Endpoint not found'}), 404
@@ -509,13 +530,13 @@ if __name__ == '__main__':
     print("🧠 MENTAL HEALTH PREDICTION API SERVER")
     print("="*60)
     
-    # Initialize database
+
     if initialize_database():
         print("✓ Database connection established")
     else:
         print("✗ Database connection failed - using mock data")
     
-    # Load models
+
     if load_models():
         print("✓ ML models loaded successfully")
     else:
@@ -526,7 +547,7 @@ if __name__ == '__main__':
     print(f"✓ Prediction endpoint: http://localhost:5002/predictmentalhealth")
     print("="*60)
     
-    # Run the Flask application
+   
     app.run(
         debug=True,
         host='0.0.0.0',
