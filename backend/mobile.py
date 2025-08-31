@@ -44,13 +44,10 @@ def load_model_components():
     
     try:
         models_dir = 'mobile_models'
-        
-        # Check if models directory exists
         if not os.path.exists(models_dir):
             logger.error(f"Models directory '{models_dir}' not found!")
             return False
-        
-        # Load model metadata
+
         metadata_path = os.path.join(models_dir, 'model_metadata.joblib')
         if os.path.exists(metadata_path):
             model_metadata = joblib.load(metadata_path)
@@ -58,8 +55,6 @@ def load_model_components():
         else:
             logger.error("Model metadata not found!")
             return False
-        
-        # Load the trained model
         model_path = os.path.join(models_dir, 'best_model.joblib')
         if os.path.exists(model_path):
             model = joblib.load(model_path)
@@ -67,8 +62,6 @@ def load_model_components():
         else:
             logger.error("Model file not found!")
             return False
-        
-        # Load label encoder
         le_path = os.path.join(models_dir, 'label_encoder.joblib')
         if os.path.exists(le_path):
             label_encoder = joblib.load(le_path)
@@ -76,8 +69,6 @@ def load_model_components():
         else:
             logger.error("Label encoder not found!")
             return False
-        
-        # Load feature columns
         features_path = os.path.join(models_dir, 'feature_columns.joblib')
         if os.path.exists(features_path):
             feature_columns = joblib.load(features_path)
@@ -86,7 +77,7 @@ def load_model_components():
             logger.error("Feature columns not found!")
             return False
         
-        # Load scaler if required
+
         if model_metadata.get('requires_scaling', False):
             scaler_path = os.path.join(models_dir, 'scaler.joblib')
             if os.path.exists(scaler_path):
@@ -105,16 +96,17 @@ def load_model_components():
         logger.error(f"Error loading model components: {str(e)}")
         logger.error(traceback.format_exc())
         return False
+    
+
+
 
 def validate_input_data(data):
     """Validate input data for mobile usage analysis"""
     errors = {}
     
-    # Check if user_id is provided
     if 'user_id' not in data or not data['user_id']:
         errors['user_id'] = 'User ID is required'
     
-    # Validate each feature
     feature_validations = {
         'daily_screen_time': {'min': 0, 'max': 24, 'type': float},
         'app_sessions': {'min': 0, 'max': 500, 'type': int},
@@ -142,11 +134,14 @@ def validate_input_data(data):
     
     return errors
 
+
+
+
 def generate_personalized_tips(input_data, prediction):
     """Generate personalized tips based on user input and prediction"""
     tips = []
     
-    # Convert string values to numbers for analysis
+
     screen_time = float(input_data.get('daily_screen_time', 0))
     social_media = float(input_data.get('social_media_usage', 0))
     gaming_time = float(input_data.get('gaming_time', 0))
@@ -213,7 +208,9 @@ def generate_personalized_tips(input_data, prediction):
             "Use physical alarm clocks instead of your phone to reduce morning usage"
         ])
     
-    return tips[:8]  # Return maximum 8 tips
+    return tips[:8]  
+
+
 
 def save_to_mongodb(user_id, input_data, prediction_result):
     """Save prediction result to MongoDB"""
@@ -297,7 +294,6 @@ def home():
 def analyze_mobile_usage():
     """Main endpoint for mobile usage analysis"""
     try:
-        # Get JSON data from request
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
@@ -305,19 +301,16 @@ def analyze_mobile_usage():
         user_id = data.get('user_id', '')
         logger.info(f"Analysis request received for user: {user_id}")
         
-        # Check if user already submitted today (check MongoDB first)
         existing_prediction = get_today_prediction_from_db(user_id)
         if existing_prediction:
             logger.info(f"User {user_id} already submitted today - returning existing prediction")
             return jsonify(existing_prediction), 200
         
-        # Validate input data
         validation_errors = validate_input_data(data)
         if validation_errors:
             logger.warning(f"Validation errors: {validation_errors}")
             return jsonify({'error': 'Validation failed', 'details': validation_errors}), 400
-        
-        # Prepare features for prediction
+
         try:
             features = []
             for feature in feature_columns:
@@ -327,36 +320,28 @@ def analyze_mobile_usage():
                     features.append(int(data[feature]))
                 else:
                     features.append(float(data[feature]))
-            
-            # Convert to numpy array and reshape for prediction
+              
             features_array = np.array(features).reshape(1, -1)
-            
-            # Apply scaling if required
+                    
             if model_metadata.get('requires_scaling', False) and scaler is not None:
                 features_array = scaler.transform(features_array)
             
-            # Make prediction
             prediction_encoded = model.predict(features_array)[0]
             
-            # Get prediction probabilities if available
             prediction_proba = None
             if hasattr(model, 'predict_proba'):
                 prediction_proba = model.predict_proba(features_array)[0]
             
-            # Decode prediction
             prediction = label_encoder.inverse_transform([prediction_encoded])[0]
             
-            # Calculate confidence
             if prediction_proba is not None:
                 confidence_value = max(prediction_proba) * 100
                 confidence = f"{confidence_value:.1f}%"
             else:
                 confidence = "N/A"
-            
-            # Generate personalized tips
+        
             personalized_tips = generate_personalized_tips(data, prediction)
             
-            # Prepare input summary
             input_summary = {
                 'daily_screen_time': float(data['daily_screen_time']),
                 'social_media_usage': float(data['social_media_usage']),
@@ -366,7 +351,6 @@ def analyze_mobile_usage():
                 'gaming_time': float(data['gaming_time'])
             }
             
-            # Create response
             result = {
                 'prediction': prediction,
                 'status': 'Analysis Complete',
@@ -376,12 +360,11 @@ def analyze_mobile_usage():
                 'analysis_info': {
                     'model_used': model_metadata.get('best_model_name', 'Machine Learning Model'),
                     'features_analyzed': len(feature_columns),
-                    'timestamp': datetime.utcnow().isoformat() + 'Z',  # Changed to UTC with 'Z'
+                    'timestamp': datetime.utcnow().isoformat() + 'Z',  
                     'user_id': user_id
                 }
             }
             
-            # Save to MongoDB
             save_success = save_to_mongodb(user_id, data, result)
             if save_success:
                 logger.info(f"Successfully saved prediction for user {user_id}")
@@ -400,6 +383,8 @@ def analyze_mobile_usage():
         logger.error(f"Analysis error: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({'error': 'Internal server error'}), 500
+    
+
 
 @app.route('/get_today_prediction', methods=['GET'])
 def get_today_prediction():
@@ -421,6 +406,8 @@ def get_today_prediction():
     except Exception as e:
         logger.error(f"Error retrieving today's prediction: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+    
+
 
 @app.route('/get_user_history', methods=['GET'])
 def get_user_history():
@@ -433,15 +420,11 @@ def get_user_history():
         
         if not user_id:
             return jsonify({'error': 'User ID is required'}), 400
-        
-        # Validate date formats if provided
         date_format = re.compile(r'^\d{4}-\d{2}-\d{2}$')
         if start_date and not date_format.match(start_date):
             return jsonify({'error': 'start_date must be in YYYY-MM-DD format'}), 400
         if end_date and not date_format.match(end_date):
             return jsonify({'error': 'end_date must be in YYYY-MM-DD format'}), 400
-        
-        # Build query with date filtering
         query = {'user_id': user_id}
         if start_date and end_date:
             query['date'] = {'$gte': start_date, '$lte': end_date}
@@ -453,13 +436,11 @@ def get_user_history():
         if mobile_collection is None:
             return jsonify({'error': 'Database not available'}), 500
         
-        # Get user's prediction history
         history = list(mobile_collection.find(
             query,
             {'_id': 0, 'prediction_result': 1, 'input_data': 1, 'date': 1, 'created_at': 1}
         ).sort('created_at', -1).limit(limit))
         
-        # Convert created_at to ISO string with 'Z' for UTC
         formatted_history = []
         for item in history:
             entry = {
@@ -476,6 +457,9 @@ def get_user_history():
     except Exception as e:
         logger.error(f"Error retrieving user history: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+    
+
+
 
 @app.route('/health', methods=['GET'])
 def health_check():
