@@ -17,7 +17,7 @@
 **Mentora** is an advanced AI-powered mental wellness platform that leverages digital behavior analytics and lifestyle data to provide comprehensive mental health insights. Built for students and young professionals, it combines machine learning algorithms with intuitive web interfaces to deliver predictive analytics, personalized recommendations, and automated wellness monitoring.
 
 ### 🏆 Key Highlights
-- **6 AI-Powered Predictive Models** for comprehensive mental health assessment
+- **4 AI-Powered Predictive Models** for comprehensive mental health assessment
 - **Real-time Dashboard Analytics** with interactive visualizations  
 - **Automated Alert System** for early intervention
 - **Intelligent Reporting** with personalized insights
@@ -30,7 +30,7 @@
 ### 🧠 AI-Powered Predictive Models
 | Model | Description | Use Case |
 |-------|-------------|----------|
-| **Stress Level Predictor** | Analyzes lifestyle patterns to detect stress indicators | Preventive stress management |
+| **Stress Level Predictor** | Analyzes lifestyle and digital behavior patterns to detect stress indicators | Preventive stress management |
 | **Mental Health Classifier** | Comprehensive risk assessment (Healthy/At Risk) | Overall wellness monitoring |
 | **Depression Level Detector** | Identifies severity of depressive symptoms | Early depression screening |
 | **Anxiety Presence Identifier** | Flags early anxiety disorder signs | Anxiety disorder prevention |
@@ -48,13 +48,13 @@
 - **Threshold-Based Alerts** - Automatic notifications when wellness metrics exceed safe limits
 - **Predictive Warnings** - Early intervention alerts based on behavior patterns
 - **Daily Engagement Reminders** - Streak maintenance and motivation boosters
-- **Weekly Wellness Reports** - Comprehensive PDF/CSV reports with actionable insights
+- **Weekly Wellness Reports** - Comprehensive PDF reports with actionable insights
 
 ### 📈 Automated Reporting System
 - **Daily Reports** - Quick wellness snapshots and streak tracking
 - **Weekly Analytics** - Comprehensive trend analysis with recommendations
 - **Custom Scheduling** - Flexible report delivery via email
-- **Multi-format Export** - PDF, CSV, and JSON export options
+
 
 ---
 
@@ -62,15 +62,16 @@
 
 <div align="center">
 
-| Layer | Technologies |
-|-------|-------------|
-| **Frontend** | React.js, JavaScript ES6+, HTML5, CSS3, Chart.js |
-| **Backend** | Flask, Python 3.8+, RESTful APIs, JWT Authentication |
-| **Database** | MongoDB, Mongoose ODM |
-| **ML/AI** | Scikit-learn, TensorFlow, Pandas, NumPy |
-| **Visualization** | Matplotlib, Seaborn, Plotly |
-| **Development** | Jupyter Notebooks, Git, Docker |
-| **Security** | bcrypt, CORS, Rate Limiting, Data Encryption |
+| Layer             | Technologies                                                                 |
+| ----------------- | ---------------------------------------------------------------------------- |
+| **Frontend**      | React.js, JavaScript ES6+, HTML5, CSS3, Chart.js                             |
+| **Backend**       | Flask, Python 3.8+, RESTful APIs, Flask Session Authentication               |
+| **Database**      | MongoDB, Mongoose ODM                                                        |
+| **ML/AI**         | Scikit-learn, Pandas, NumPy                                      |
+| **Visualization** | Matplotlib, Seaborn, Plotly                                                  |
+| **Development**   | Jupyter Notebooks, Git, GitHub                                               |
+| **Security**      | Password hashing via Werkzeug (PBKDF2), CORS, Rate Limiting, Data Encryption |
+
 
 </div>
 
@@ -86,11 +87,11 @@ MENTORA/
 │   ├── mobile_models/                   # Mobile addiction models  
 │   ├── students_models/                 # Academic performance models
 │   ├── academic.py                      # Academic impact predictor
-│   ├── mental.py                        # Mental health classifier
-│   ├── mobile.py                        # Mobile addiction detector
-│   ├── register.py                      # User registration & auth
+│   ├── mental.py                        # Mental health classifier API
+│   ├── mobile.py                        # Mobile addiction detector API
+│   ├── register.py                      # User registration & auth API 
 │   ├── report_generator.py              # Automated report generation
-│   ├── stress.py                        # Stress level analyzer
+│   ├── stress.py                        # Stress level analyzer API
 │   └── requirements.txt                 # Backend dependencies
 │
 ├── 📊 data/                            # Training Datasets
@@ -114,35 +115,35 @@ MENTORA/
 │   │   ├── components/                  # React components
 │   │   │   ├── Sidebar.css             # Sidebar styling
 │   │   │   ├── Sidebar.jsx             # Navigation sidebar
-│   │   │   ├── academicPerformance.jsx # Academic predictor UI
-│   │   │   ├── App.css                 # Main app styles
-│   │   │   ├── App.js                  # Root component
-│   │   │   ├── App.test.js             # App unit tests
-│   │   │   ├── Dashboard.css           # Dashboard styling
-│   │   │   ├── dashboard.jsx           # Main dashboard
-│   │   │   ├── index.js                # React entry point
-│   │   │   ├── Landing.css             # Landing page styles
-│   │   │   ├── Landing.jsx             # Landing page component
-│   │   │   ├── Login.css               # Login form styles
-│   │   │   ├── LoginForm.jsx           # User login component
-│   │   │   ├── logo.svg                # React logo
-│   │   │   ├── mentalHealth.css        # Mental health predictor styles
-│   │   │   ├── mentalHealth.jsx        # Mental health predictor
-│   │   │   ├── mobileAddiction.css     # Mobile addiction styles
-│   │   │   ├── mobileAddiction.jsx     # Mobile addiction predictor
-│   │   │   ├── profile.jsx             # User profile component
-│   │   │   ├── ProfilePage.css         # Profile page styles
-│   │   │   ├── register.jsx            # Registration component
-│   │   │   ├── RegistrationForm.jsx    # User registration form
-│   │   │   ├── reportWebVitals.js      # Performance monitoring
-│   │   │   ├── setupTests.js           # Test configuration
-│   │   │   ├── SocialMediaPredictor.css # Social media predictor styles
-│   │   │   ├── SocialMediaPredictor.jsx # Social media predictor
-│   │   │   ├── stress.css              # Stress predictor styles
-│   │   │   └── stress.jsx              # Stress level predictor
+│   │   ├── academicPerformance.jsx # Academic predictor UI
+│   │   ├── App.css                 # Main app styles
+│   │   ├── App.js                  # Root component
+│   │   ├── App.test.js             # App unit tests
+│   │   ├── Dashboard.css           # Dashboard styling
+│   │   ├── dashboard.jsx           # Main dashboard
+│   │   ├── index.js                # React entry point
+│   │   ├── Landing.css             # Landing page styles
+│   │   ├── Landing.jsx             # Landing page component
+│   │   ├── Login.css               # Login form styles
+│   │   ├── LoginForm.jsx           # User login component
+│   │   ├── logo.svg                # React logo
+│   │   ├── mentalHealth.css        # Mental health predictor styles
+│   │   ├── mentalHealth.jsx        # Mental health predictor
+│   │   ├── mobileAddiction.css     # Mobile addiction styles
+│   │   ├── mobileAddiction.jsx     # Mobile addiction predictor
+│   │   ├── profile.jsx             # User profile component
+│   │   ├── ProfilePage.css         # Profile page styles
+│   │   ├── register.jsx            # Registration component
+│   │   ├── RegistrationForm.jsx    # User registration form
+│   │   ├── reportWebVitals.js      # Performance monitoring
+│   │   ├── setupTests.js           # Test configuration
+│   │   ├── SocialMediaPredictor.css # Social media predictor styles
+│   │   ├── SocialMediaPredictor.jsx # Social media predictor
+│   │   ├── stress.css              # Stress predictor styles
+│   │   └── stress.jsx              # Stress level predictor
 │   │   └── Unauthorized.js             # Unauthorized access handler
-│   ├── package-lock.json               # Locked dependency versions
-│   └── package.json                    # Node.js dependencies
+│   ├   ├── package-lock.json               # Locked dependency versions
+│   ├   └── package.json                    # Node.js dependencies
 │
 ├── 🔬 Research Notebooks               # Jupyter ML Research
 │   ├── academicResults.ipynb           # Academic performance analysis
@@ -173,7 +174,7 @@ MENTORA/
 
 ### 1️⃣ Clone Repository
 ```bash
-git clone https://github.com/yourusername/Mentora.git
+git clone https://github.com/mohrashard/mentora.git
 cd Mentora
 ```
 
@@ -230,12 +231,13 @@ jupyter notebook
 
 Mentora utilizes carefully curated public datasets from Kaggle:
 
-| Dataset | Size | Purpose | Features |
-|---------|------|---------|----------|
-| Mental Health Dataset | 20k+ records | General wellness indicators | Mood, sleep, stress levels |
-| Mobile Addiction Dataset | 15k+ records | Digital behavior patterns | Screen time, app usage |
-| Sleep & Lifestyle Dataset | 10k+ records | Lifestyle impact analysis | Sleep quality, exercise, diet |
-| Student Social Media Dataset | 5k+ records | Academic performance correlation | GPA, social media usage |
+| Dataset                     | Purpose                        | Features                     |
+|-----------------------------|--------------------------------|------------------------------|
+| Mental Health Dataset       | General wellness indicators    | Mood, sleep, stress levels   |
+| Mobile Addiction Dataset    | Digital behavior patterns      | Screen time, app usage       |
+| Sleep & Lifestyle Dataset   | Lifestyle impact analysis      | Sleep quality, exercise, diet|
+| Student Social Media Dataset| Academic performance correlation| GPA, social media usage     |
+
 
 **Data Privacy:** All datasets are anonymized and used in compliance with privacy regulations.
 
@@ -244,17 +246,17 @@ Mentora utilizes carefully curated public datasets from Kaggle:
 ## 🔐 Security & Privacy
 
 ### 🛡️ Security Measures
-- **End-to-End Encryption** for data transmission
-- **JWT Authentication** with refresh tokens
+- **Password Hashing** via Werkzeug (PBKDF2) for secure credential storage
+- **Flask Session Authentication** for user login management
 - **Rate Limiting** to prevent abuse
 - **Input Validation** and sanitization
 - **CORS Configuration** for secure cross-origin requests
+- **Data Encryption** for sensitive information
+
 
 ### 🔒 Privacy Protection
 - **Data Anonymization** before processing
 - **Explicit User Consent** for data collection
-- **GDPR & HIPAA Compliance** frameworks
-- **Role-Based Access Control** (RBAC)
 - **Regular Security Audits** and updates
 
 ---
@@ -304,14 +306,29 @@ gunicorn -w 4 -b 0.0.0.0:5000 app:app
 ## 📈 Performance Metrics
 
 ### Model Accuracy
-| Model | Accuracy | Precision | Recall | F1-Score |
-|-------|----------|-----------|--------|----------|
-| Stress Predictor | 94.2% | 93.8% | 94.6% | 94.2% |
-| Mental Health Classifier | 91.7% | 90.5% | 92.3% | 91.4% |
-| Depression Detector | 89.3% | 88.7% | 90.1% | 89.4% |
-| Anxiety Identifier | 92.1% | 91.8% | 92.4% | 92.1% |
-| Academic Analyzer | 87.6% | 86.9% | 88.2% | 87.5% |
-| Mobile Addiction | 93.4% | 93.1% | 93.7% | 93.4% |
+| **Model**                 | **Algorithm Used**     | **Accuracy** | **CV Score**        | **Precision** | **Recall** | **F1-Score** |
+|----------------------------|----------------------|-------------|-------------------|---------------|------------|--------------|
+| 🟢 Stress Predictor        | Gradient Boosting     | 92.4%       | 0.9822 ± 0.0133   | 91.6%         | 92.3%      | 91.9%        |
+| 🟡 Mental Health Classifier| Random Forest         | 91.5%       | 0.9150             | 90%           | 57%        | 59%          |
+| 🟢 Depression Detector     | Gradient Boosting     | 99.4%       | 0.9943             | 98%           | 89%        | 93%          |
+| 🟡 Anxiety Identifier      | Random Forest         | 91.6%       | 0.9160             | 71%           | 51%        | 50%          |
+| 🟢 Academic Analyzer       | Random Forest         | 100%        | 1.0000 ± 0.0000    | 100%          | 100%       | 100%         |
+| 🟢 Mobile Addiction        | SVM                   | 98.1%       | 0.9812             | 98%           | 98%        | 98%          |
+
+
+**Summary of Model Performance:**
+
+- **Highest Accuracy:** Academic Analyzer (Random Forest) – 100%  
+- **Best Cross-Validation Score:** Stress Predictor (Gradient Boosting) – 0.9822 ± 0.0133  
+- **Highest Precision:** Academic Analyzer (Random Forest) – 100%  
+- **Highest Recall:** Academic Analyzer (Random Forest) – 100%  
+- **Highest F1-Score:** Academic Analyzer (Random Forest) – 100%  
+
+Other notable performers:  
+- **Depression Detector (Gradient Boosting)** achieved very high accuracy (99.4%) and F1-Score (93%).  
+- **Mobile Addiction Predictor (SVM)** achieved strong overall performance with 98.1% accuracy and balanced metrics.  
+- **Mental Health Classifier** and **Anxiety Identifier** performed moderately, indicating potential for further optimization.
+
 
 ### System Performance
 - **API Response Time:** < 200ms average
@@ -336,13 +353,13 @@ While this is primarily a solo academic project, contributions are welcome! Plea
 
 ## 👨‍💻 Author & Acknowledgments
 
-**Project Lead & Developer:** [Mohamed Rashard](https://github.com/yourusername)  
-🎓 **Institution:** ICBT – MSc Computational Intelligence & Business Analytics  
+**Project Lead & Developer:** [Mohamed Rashard](https://github.com/mohrashard/)  
+🎓 **Institution:** Cardiff Metropolitan University – BSC Software Engineering and Artificial Intelligence 
 📅 **Academic Year:** 2025  
-📧 **Contact:** your.email@example.com
+📧 **Contact:** mohrashard@gmail.com
 
 ### Acknowledgments
-- Kaggle community for providing high-quality datasets
+- Kaggle for providing high-quality datasets
 - Open-source contributors for ML libraries
 - ICBT faculty for academic guidance and support
 
