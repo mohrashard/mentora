@@ -17,7 +17,7 @@
 **Mentora** is an advanced AI-powered mental wellness platform that leverages digital behavior analytics and lifestyle data to provide comprehensive mental health insights. Built for students and young professionals, it combines machine learning algorithms with intuitive web interfaces to deliver predictive analytics, personalized recommendations, and automated wellness monitoring.
 
 ### 🏆 Key Highlights
-- **4 AI-Powered Predictive Models** for comprehensive mental health assessment
+- **6 AI-Powered Predictive Models** for comprehensive mental health assessment
 - **Real-time Dashboard Analytics** with interactive visualizations  
 - **Automated Alert System** for early intervention
 - **Intelligent Reporting** with personalized insights
