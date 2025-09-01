@@ -375,14 +375,7 @@ This project is developed for **academic and research purposes only**. All right
 
 ---
 
-## 🔗 Links & Resources
 
-- 📚 [Documentation](docs/)
-- 🐛 [Issue Tracker](https://github.com/yourusername/Mentora/issues)
-- 📊 [Project Roadmap](docs/ROADMAP.md)
-- 💬 [Discussions](https://github.com/yourusername/Mentora/discussions)
-
----
 
 <div align="center">
   
