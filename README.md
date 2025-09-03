@@ -83,8 +83,11 @@
 MENTORA/
 ├── 🔧 backend/                          # Flask API & ML Services
 │   ├── __pycache__/                     # Python cache files
+│   ├── assets/                          # Backend assets
+│   │   └── style.css                    # Styling assets
 │   ├── mental_health_models/            # Trained mental health models
 │   ├── mobile_models/                   # Mobile addiction models  
+│   ├── stress_models/                   # Stress prediction models
 │   ├── students_models/                 # Academic performance models
 │   ├── academic.py                      # Academic impact predictor
 │   ├── mental.py                        # Mental health classifier API
@@ -92,7 +95,17 @@ MENTORA/
 │   ├── register.py                      # User registration & auth API 
 │   ├── report_generator.py              # Automated report generation
 │   ├── stress.py                        # Stress level analyzer API
-│   └── requirements.txt                 # Backend dependencies
+│   ├── requirements.txt                 # Backend dependencies
+│   ├── test_academic.html               # Academic predictor test interface
+│   ├── test_academic.py                 # Academic predictor test script
+│   ├── test_mental.html                 # Mental health test interface
+│   ├── test_mental.py                   # Mental health test script
+│   ├── test_mobile.py                   # Mobile addiction test script
+│   ├── test_register.html               # Registration test interface
+│   ├── test_register.py                 # Registration test script
+│   ├── test_report.html                 # Report generation test interface
+│   ├── test_report.py                   # Report generation test script
+│   └── test_stress.py                   # Stress predictor test script
 │
 ├── 📊 data/                            # Training Datasets
 │   ├── mental_health_dataset.csv        # Mental health indicators
@@ -151,15 +164,9 @@ MENTORA/
 │   ├── mobile_addiction_model.ipynb    # Mobile addiction research
 │   └── stressModel.ipynb               # Stress prediction modeling
 │
-├── 🔧 Root Files                       # Configuration & Setup
-│   ├── academic.py                     # Standalone academic predictor
-│   ├── .env                           # Environment variables
-│   ├── .gitignore                     # Git ignore rules
-│   ├── mental.py                      # Standalone mental health predictor
-│   ├── mobile.py                      # Standalone mobile addiction predictor
-│   ├── README.md                      # This documentation
-│   ├── requirements.txt               # Global Python dependencies
-│   └── stress.py                      # Standalone stress predictor
+├── 🧪 Testing Suite                    # Test Files & Interfaces
+│   ├── test_academic.html              # Academic predictor test interface
+
 ```
 
 ---
