@@ -1,16 +1,16 @@
+# mobile.py (corrected)
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import joblib
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import os
 import traceback
 from pymongo import MongoClient
 from bson import ObjectId
 import json
-import re  # Added for date format validation
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -220,12 +220,13 @@ def save_to_mongodb(user_id, input_data, prediction_result):
     
     try:
         # Create document with proper structure
+        now = datetime.now(timezone.utc)
         document = {
             'user_id': user_id,
             'input_data': input_data,
             'prediction_result': prediction_result,
-            'created_at': datetime.utcnow(),  # Changed to UTC
-            'date': datetime.utcnow().strftime('%Y-%m-%d')  # Changed to UTC
+            'created_at': now,
+            'date': now.strftime('%Y-%m-%d')
         }
         
         # Insert document
@@ -244,7 +245,7 @@ def get_today_prediction_from_db(user_id):
         return None
     
     try:
-        today = datetime.utcnow().strftime('%Y-%m-%d')  # Changed to UTC
+        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         
         # Find today's prediction for the user
         prediction = mobile_collection.find_one({
@@ -351,6 +352,7 @@ def analyze_mobile_usage():
                 'gaming_time': float(data['gaming_time'])
             }
             
+            now = datetime.now(timezone.utc)
             result = {
                 'prediction': prediction,
                 'status': 'Analysis Complete',
@@ -360,7 +362,7 @@ def analyze_mobile_usage():
                 'analysis_info': {
                     'model_used': model_metadata.get('best_model_name', 'Machine Learning Model'),
                     'features_analyzed': len(feature_columns),
-                    'timestamp': datetime.utcnow().isoformat() + 'Z',  
+                    'timestamp': now.isoformat().replace('+00:00', 'Z'),
                     'user_id': user_id
                 }
             }
@@ -420,11 +422,19 @@ def get_user_history():
         
         if not user_id:
             return jsonify({'error': 'User ID is required'}), 400
-        date_format = re.compile(r'^\d{4}-\d{2}-\d{2}$')
-        if start_date and not date_format.match(start_date):
-            return jsonify({'error': 'start_date must be in YYYY-MM-DD format'}), 400
-        if end_date and not date_format.match(end_date):
-            return jsonify({'error': 'end_date must be in YYYY-MM-DD format'}), 400
+        
+        if start_date:
+            try:
+                datetime.strptime(start_date, '%Y-%m-%d')
+            except ValueError:
+                return jsonify({'error': 'Invalid start_date. Must be a valid date in YYYY-MM-DD format'}), 400
+        
+        if end_date:
+            try:
+                datetime.strptime(end_date, '%Y-%m-%d')
+            except ValueError:
+                return jsonify({'error': 'Invalid end_date. Must be a valid date in YYYY-MM-DD format'}), 400
+        
         query = {'user_id': user_id}
         if start_date and end_date:
             query['date'] = {'$gte': start_date, '$lte': end_date}
@@ -444,7 +454,7 @@ def get_user_history():
         formatted_history = []
         for item in history:
             entry = {
-                "created_at": item['created_at'].isoformat() + 'Z',
+                "created_at": item['created_at'].isoformat().replace('+00:00', 'Z'),
                 "date": item['date'],
                 "input_data": item['input_data'],
                 "prediction_result": item['prediction_result']
@@ -471,9 +481,10 @@ def health_check():
         # Count today's predictions
         today_count = 0
         if mobile_collection is not None:
-            today = datetime.utcnow().strftime('%Y-%m-%d')  # Changed to UTC
+            today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
             today_count = mobile_collection.count_documents({'date': today})
         
+        now = datetime.now(timezone.utc)
         return jsonify({
             'status': 'Server is running',
             'model_status': model_status,
@@ -485,7 +496,7 @@ def health_check():
                 'accuracy': model_metadata.get('best_accuracy', 0) if model_metadata else 0
             },
             'active_predictions_today': today_count,
-            'timestamp': datetime.utcnow().isoformat() + 'Z'  # Changed to UTC with 'Z'
+            'timestamp': now.isoformat().replace('+00:00', 'Z')
         }), 200
     except Exception as e:
         logger.error(f"Health check error: {str(e)}")
