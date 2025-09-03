@@ -8,6 +8,7 @@
   [![Flask](https://img.shields.io/badge/Flask-2.0+-green.svg)](https://flask.palletsprojects.com/)
   [![License](https://img.shields.io/badge/License-Academic-orange.svg)](#license)
   [![MongoDB](https://img.shields.io/badge/MongoDB-4.4+-47A248.svg)](https://www.mongodb.com/)
+  [![Tests](https://img.shields.io/badge/Tests-135%20Passed-brightgreen.svg)](#testing)
 </div>
 
 ---
@@ -22,6 +23,7 @@
 - **Automated Alert System** for early intervention
 - **Intelligent Reporting** with personalized insights
 - **Privacy-First Architecture** with enterprise-grade security
+- **Comprehensive Testing Suite** with 135 test cases and 100% pass rate
 
 ---
 
@@ -55,7 +57,6 @@
 - **Weekly Analytics** - Comprehensive trend analysis with recommendations
 - **Custom Scheduling** - Flexible report delivery via email
 
-
 ---
 
 ## 🛠️ Technology Stack
@@ -70,8 +71,8 @@
 | **ML/AI**         | Scikit-learn, Pandas, NumPy                                      |
 | **Visualization** | Matplotlib, Seaborn, Plotly                                                  |
 | **Development**   | Jupyter Notebooks, Git, GitHub                                               |
+| **Testing**       | pytest, pytest-html, unittest.mock, pytest-mock                             |
 | **Security**      | Password hashing via Werkzeug (PBKDF2), CORS, Rate Limiting, Data Encryption |
-
 
 </div>
 
@@ -166,7 +167,25 @@ MENTORA/
 │
 ├── 🧪 Testing Suite                    # Test Files & Interfaces
 │   ├── test_academic.html              # Academic predictor test interface
-
+│   ├── test_academic.py                # Academic predictor test script
+│   ├── test_mental.html                # Mental health test interface  
+│   ├── test_mental.py                  # Mental health test script
+│   ├── test_mobile.py                  # Mobile addiction test script
+│   ├── test_register.html              # Registration test interface
+│   ├── test_register.py                # Registration test script
+│   ├── test_report.html                # Report generation test interface
+│   ├── test_report.py                  # Report generation test script
+│   └── test_stress.py                  # Stress predictor test script
+│
+├── 🔧 Root Files                       # Configuration & Setup
+│   ├── academic.py                     # Standalone academic predictor
+│   ├── .env                           # Environment variables
+│   ├── .gitignore                     # Git ignore rules
+│   ├── mental.py                      # Standalone mental health predictor
+│   ├── mobile.py                      # Standalone mobile addiction predictor
+│   ├── README.md                      # This documentation
+│   ├── requirements.txt               # Global Python dependencies
+│   └── stress.py                      # Standalone stress predictor
 ```
 
 ---
@@ -234,6 +253,90 @@ jupyter notebook
 
 ---
 
+## 🧪 Testing Infrastructure
+
+### 📋 Test Coverage Overview
+Mentora includes a comprehensive testing suite that ensures reliability and stability across all backend components:
+
+- **135 Test Cases** covering all backend APIs
+- **100% Pass Rate** with automated validation
+- **HTML Test Interfaces** for manual API testing
+- **Automated Test Scripts** for continuous integration
+
+### 🔧 Testing Components
+
+#### Backend API Testing
+| Component | Test File | Test Interface | Coverage |
+|-----------|-----------|----------------|----------|
+| **Academic Predictor** | `test_academic.py` | `test_academic.html` | Input validation, prediction logic, database operations |
+| **Mental Health Classifier** | `test_mental.py` | `test_mental.html` | Risk assessment, recommendations, data storage |
+| **Mobile Addiction Detector** | `test_mobile.py` | - | Usage pattern analysis, addiction scoring |
+| **User Registration & Auth** | `test_register.py` | `test_register.html` | Authentication, profile management, streak calculation |
+| **Report Generator** | `test_report.py` | `test_report.html` | HTML report generation, data formatting |
+| **Stress Predictor** | `test_stress.py` | - | Stress level analysis, health metrics estimation |
+
+### 🏃‍♂️ Running Tests
+
+#### Comprehensive Test Suite
+```bash
+cd backend
+
+# Run all tests with verbose output
+pytest -v
+
+# Generate HTML test report
+pytest --html=test_report.html -v
+
+# Run specific test modules
+pytest test_academic.py -v
+pytest test_mental.py -v
+pytest test_mobile.py -v
+pytest test_register.py -v
+pytest test_report.py -v  
+pytest test_stress.py -v
+```
+
+#### Frontend Tests
+```bash
+cd frontend
+
+# Run React component tests
+npm test
+
+# Run tests with coverage report
+npm test -- --coverage
+```
+
+#### Manual Testing via HTML Interfaces
+Access the HTML test interfaces for interactive API testing:
+- `backend/test_academic.html` - Academic prediction testing
+- `backend/test_mental.html` - Mental health assessment testing
+- `backend/test_register.html` - User registration and login testing
+- `backend/test_report.html` - Report generation testing
+
+### 📊 Test Results Summary
+```
+================================ 135 passed, 55 warnings in 7.66s ================================
+```
+
+**Test Distribution:**
+- **Academic Predictor:** 18 tests
+- **Mental Health Classifier:** 16 tests  
+- **Mobile Addiction Detector:** 10 tests
+- **User Registration & Auth:** 17 tests
+- **Report Generator:** 14 tests
+- **Stress Predictor:** 60 tests
+
+**Key Test Areas:**
+- Input validation and data preprocessing
+- Model prediction accuracy and error handling
+- Database operations and data persistence
+- Authentication and session management
+- Error handling and edge cases
+- API endpoint functionality and response formats
+
+---
+
 ## 📊 Dataset Information
 
 Mentora utilizes carefully curated public datasets from Kaggle:
@@ -244,7 +347,6 @@ Mentora utilizes carefully curated public datasets from Kaggle:
 | Mobile Addiction Dataset    | Digital behavior patterns      | Screen time, app usage       |
 | Sleep & Lifestyle Dataset   | Lifestyle impact analysis      | Sleep quality, exercise, diet|
 | Student Social Media Dataset| Academic performance correlation| GPA, social media usage     |
-
 
 **Data Privacy:** All datasets are anonymized and used in compliance with privacy regulations.
 
@@ -260,7 +362,6 @@ Mentora utilizes carefully curated public datasets from Kaggle:
 - **CORS Configuration** for secure cross-origin requests
 - **Data Encryption** for sensitive information
 
-
 ### 🔒 Privacy Protection
 - **Data Anonymization** before processing
 - **Explicit User Consent** for data collection
@@ -269,18 +370,6 @@ Mentora utilizes carefully curated public datasets from Kaggle:
 ---
 
 ## 🧪 Development & Testing
-
-### Running Tests
-```bash
-# Backend tests
-pytest backend/tests/ -v
-
-# Frontend tests  
-cd frontend && npm test
-
-# Integration tests
-pytest tests/integration/ -v
-```
 
 ### Model Training & Testing
 ```bash
@@ -322,7 +411,6 @@ gunicorn -w 4 -b 0.0.0.0:5000 app:app
 | 🟢 Academic Analyzer       | Random Forest         | 100%        | 1.0000 ± 0.0000    | 100%          | 100%       | 100%         |
 | 🟢 Mobile Addiction        | SVM                   | 98.1%       | 0.9812             | 98%           | 98%        | 98%          |
 
-
 **Summary of Model Performance:**
 
 - **Highest Accuracy:** Academic Analyzer (Random Forest) – 100%  
@@ -336,12 +424,12 @@ Other notable performers:
 - **Mobile Addiction Predictor (SVM)** achieved strong overall performance with 98.1% accuracy and balanced metrics.  
 - **Mental Health Classifier** and **Anxiety Identifier** performed moderately, indicating potential for further optimization.
 
-
 ### System Performance
 - **API Response Time:** < 200ms average
 - **Dashboard Load Time:** < 3 seconds
 - **Real-time Updates:** < 1 second latency
 - **Report Generation:** < 30 seconds for weekly reports
+- **Test Execution Time:** 7.66 seconds for 135 tests
 
 ---
 
@@ -352,9 +440,16 @@ While this is primarily a solo academic project, contributions are welcome! Plea
 ### Development Workflow
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. **Run the test suite** (`pytest -v` for backend, `npm test` for frontend)
+4. Commit changes (`git commit -m 'Add amazing feature'`)
+5. Push to branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
+
+### Testing Requirements
+- All new features must include corresponding test cases
+- Maintain or improve existing test coverage
+- Ensure all tests pass before submitting PRs
+- Update HTML test interfaces when modifying APIs
 
 ---
 
@@ -369,6 +464,7 @@ While this is primarily a solo academic project, contributions are welcome! Plea
 - Kaggle for providing high-quality datasets
 - Open-source contributors for ML libraries
 - ICBT faculty for academic guidance and support
+- pytest community for comprehensive testing framework
 
 ---
 
@@ -382,12 +478,13 @@ This project is developed for **academic and research purposes only**. All right
 
 ---
 
-
-
 <div align="center">
   
 **Built with ❤️ for mental wellness and powered by AI**
 
 ⭐ **Star this repository if you found it helpful!**
+
+[![Tests](https://img.shields.io/badge/Tests-135%20Passed-brightgreen.svg)](#testing)
+[![Coverage](https://img.shields.io/badge/Coverage-Backend%20APIs-blue.svg)](#testing)
 
 </div>
