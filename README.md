@@ -307,36 +307,57 @@ npm test
 npm test -- --coverage
 ```
 
-#### Manual Testing via HTML Interfaces
-Access the HTML test interfaces for interactive API testing:
-- `backend/test_academic.html` - Academic prediction testing
-- `backend/test_mental.html` - Mental health assessment testing
-- `backend/test_register.html` - User registration and login testing
-- `backend/test_report.html` - Report generation testing
+# 🧪 Testing and Validation
 
-### 📊 Test Results Summary
-```
-================================ 135 passed, 55 warnings in 7.66s ================================
-```
-
-**Test Distribution:**
-- **Academic Predictor:** 18 tests
-- **Mental Health Classifier:** 16 tests  
-- **Mobile Addiction Detector:** 10 tests
-- **User Registration & Auth:** 17 tests
-- **Report Generator:** 14 tests
-- **Stress Predictor:** 60 tests
-
-**Key Test Areas:**
-- Input validation and data preprocessing
-- Model prediction accuracy and error handling
-- Database operations and data persistence
-- Authentication and session management
-- Error handling and edge cases
-- API endpoint functionality and response formats
+The Mentora platform underwent comprehensive testing to ensure correct functionality, reliability, and accuracy. A combination of automated and manual testing approaches was employed.
 
 ---
 
+## 🔹 Automated Backend Testing with Pytest
+
+The backend APIs were thoroughly tested using **pytest**. Six key Python backend files were covered with dedicated test cases (see Appendix for details).
+
+- **Execution with verbose output:**
+```bash
+pytest -v
+```
+
+- **Generate HTML test report:**
+```bash
+pytest --html=test_report.html -v
+```
+
+- **Test Results:**
+```
+135 tests passed, with 55 warnings, executed in 7.66 seconds.
+```
+
+- **Test Distribution:**
+  - Academic Predictor – 18 tests
+  - Mental Health Classifier – 16 tests
+  - Mobile Addiction Detector – 10 tests
+  - User Registration & Authentication – 17 tests
+  - Report Generator – 14 tests
+  - Stress Predictor – 60 tests
+
+- **Key Areas Covered:**
+  - Input validation and data preprocessing
+  - Model prediction accuracy and error handling
+  - Database operations and data persistence
+  - Authentication and session management
+  - Error handling and edge cases
+  - API endpoint functionality and response formats
+
+## 🔹 Manual Testing via HTML Interfaces
+
+Interactive HTML pages were provided for manual API testing:
+
+- `backend/test_academic.html` – Academic prediction testing
+- `backend/test_mental.html` – Mental health assessment testing
+- `backend/test_register.html` – User registration and login testing
+- `backend/test_report.html` – Report generation testing
+
+These pages allow developers or testers to manually verify API behavior, test edge cases, and confirm response formats.
 ## 📊 Dataset Information
 
 Mentora utilizes carefully curated public datasets from Kaggle:
